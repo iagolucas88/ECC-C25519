@@ -44,28 +44,30 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
 
     mpz_t x_msg, y_msg, c25519_msg, A, B, C, exp_euler, teste_euler;
     mpz_inits(x_msg, y_msg, c25519_msg, A, B, C, exp_euler, teste_euler, NULL);
-
-    //Necessario copiar para nao alterar o valor da mensagem original e evitar conflitos
-    mpz_set(x_msg, msg); 
     
-    cout << "\n**************INICIO FUNCAO 1******************\n" << endl;
+    //Necessario copiar para nao alterar o valor da mensagem original e evitar conflitos
+    mpz_set(x_msg, msg);
 
+    cout << "\n**************INICIO FUNCAO 1******************\n" << endl;
 
     //Armazena a quantidade de digitos da mensagem na base 10
     int tamanho_msg = mpz_sizeinbase(msg, 10);
     int dif_digitos = 0;
     cout << "\nQuantidade de digitos da mensagem: " << tamanho_msg << endl;
 
-    dif_digitos = 99 - tamanho_msg; //Diferenca de digitos para inserir zeros no 'x_msg'
+    //Diferenca de digitos para inserir zeros no 'x_msg'
+    dif_digitos = 99 - tamanho_msg; 
 
     if(dif_digitos > 0){
         //Multiplica a mensagem até 99 vezes a quantidade de digitos para garantir que sejam maior que p (aprox 76 digitos)
         for(int i = 0; i < dif_digitos; i++){        
             mpz_mul_ui(x_msg, x_msg, 10); 
         }
+        //Mensagem estendida para efetuar os calculos
+        gmp_printf("\nx_msg: %Zd", x_msg);
     }
 
-    //Mensagem estendida para efetuar os calculos
+    else
     gmp_printf("\nx_msg: %Zd", x_msg);
 
     //Teste de Euler [y^((p-1)/2) = 1 (mod p)]: verifica se 'y' eh residuo quadratico no campo Fp para um primo ímpar 'p'
