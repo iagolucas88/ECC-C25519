@@ -35,8 +35,25 @@ struct Ponto{
 //p: numero primo do campo | n: ordem da curva (numero primo enorme)| h: co-fator (numero pequeno)
 //a, b: Curva de Weierstrass (Wa,b) onde 'a' e 'b' são elementos de GF(q) com 4a³ + 27b² != 0 
 //P1: ponto base (x1, y1) da curva (qualquer ponto da curva pode ser gerado pelo grupo ciclico <P> ={kP | k = 0,1,2,...} de E)
-mpz_t p, n, a, x1, y_1;  
+mpz_t p, n, a, x_1, y_1;  
 //mpz_t h, b; //'h' e 'b' nao serao ultilizados, economizando memoria
+
+
+//1. Converte qualquer caracter para inteiro GMP (tabela ASCII)
+void str_t_gmp(const string& mensagem, mpz_t msg_convertida){
+    mpz_t int_caractere;
+    mpz_init(int_caractere);
+    mpz_init_set_ui(msg_convertida, 0);
+
+    for(size_t i = 0; i < mensagem.length(); ++i){
+        unsigned char c = mensagem[i];
+        mpz_ui_pow_ui(int_caractere, 256, i); // 256^i
+        mpz_mul_ui(int_caractere, int_caractere, c); // (256^i) * valor ASCII do caractere
+        mpz_add(msg_convertida, msg_convertida, int_caractere);
+    }
+
+    mpz_clear(int_caractere);
+}
 
 //1. Curva eliptica 'Curve25519' (E). Mod q
 //Codifica a mensagem para os pontos na curva ultilizada.
@@ -48,7 +65,7 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
     //Necessario copiar para nao alterar o valor da mensagem original e evitar conflitos
     mpz_set(x_msg, msg);
 
-    cout << "\n**************INICIO FUNCAO 1******************\n" << endl;
+    cout << "\n\n**************INICIO FUNCAO 1******************\n" << endl; //REMOVER
 
     //Armazena a quantidade de digitos da mensagem na base 10
     int tamanho_msg = mpz_sizeinbase(msg, 10);
@@ -70,11 +87,13 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
     else
     gmp_printf("\nx_msg: %Zd", x_msg);
 
-    //Teste de Euler [y^((p-1)/2) = 1 (mod p)]: verifica se 'y' eh residuo quadratico no campo Fp para um primo ímpar 'p'
+    //Teste de Euler [y^((p-1)/2) = 1 (mod p)]: verifica se 'y' 
+    //eh residuo quadratico no campo Fp para um primo ímpar 'p'
     //Para C25519 p = 2^(255) - 19, logo (p - 1) = 2^(255) - 20, assim 20 é divisível por 4.
     //Portanto simplificando o teste, temos: y^[(p+1)/4] = 1 (mod p)
     mpz_add_ui(exp_euler, p, 1); //Expoente do Teste de Euler: exp_euler = (p+1)/4
-    mpz_cdiv_q_ui(exp_euler, exp_euler, 4); //gmp_printf("\nexp euler: %Zd", exp_euler);
+    mpz_cdiv_q_ui(exp_euler, exp_euler, 4); 
+    //gmp_printf("\nexp euler: %Zd", exp_euler);
 
     //Testa se P é primo (quanto maior as repeticoes um nao-primo pode ser definido como provavel)
     int primo = mpz_probab_prime_p(p, 50); //Numero de repeticoes para determinar se eh primo
@@ -156,8 +175,10 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
 
 /*NAO TESTADO
 //2. Montgomery Ladder
-FAZ-SE NECESSÁRIO OU PODE CALCULAR PELAS FÓMULAS DA ECC25519?????
+FAZ-SE NECESSÁRIO NA MULTIPLICACAO ESCALAR OU 
+PODE CALCULAR PELAS FÓRMULAS SIMPLIFICADAS DA DE EDWARDS Ed25519 (mais performace)
 */
+
 /*
 //3. Calcula o 'ADD' retornado P3(X3,Y3) somente se Y1 != +/- Y2
 //P + Q = Pm + Pn = Pm+n(Xm+n : Zm+n)
@@ -215,6 +236,7 @@ Ponto add_ponto(Ponto P, Ponto Q){
     return ({P.x, P.y}, {Q.x, Q.y});
 }
 */
+
 //4. Calcula o 'DOUBLE' retornado P3(X3,Y3) somente se Y1 != 0 
 //Quando m = n, 2*Pn = P_(2n)(X_(2n) : Z_(2n))
 Ponto double_ponto(Ponto P){
@@ -299,7 +321,7 @@ Ponto multiplicacao_escalar(mpz_t chave_prv, Ponto P){
     return {x2, y2};
 }
 
-//6. Gerar um numero inteiro randomico no intervalo [1, n-1] e retorna uma CHAVE PRIVADA
+//6. Gerar um numero inteiro randomico no intervalo [1, n-1] e retorna uma CHAVE PRIVADA (k)
 void gera_int_rand(mpz_t chave_prv, const mpz_t n){
     
     //________________________INICIO GERAR SEMENTE________________________
@@ -313,15 +335,12 @@ void gera_int_rand(mpz_t chave_prv, const mpz_t n){
     }
     unsigned char seed[64];  //64 bytes de semente para C25519 (pode ser menor e seguro)
 
-    uint64_t semente; //Teste com inteiro, declara int de 64 bits
-
-    //"64-bits of information to avoid repeating the same seed...
-    //...If you read 4 bytes from this device then you will get a nicely random and unpredictable 32-bit seed
-    //value, and you can read as many bytes as you need." (Retirado de um artigo sobre criptografia)
+    /*"64-bits of information to avoid repeating the same seed...
+    ...If you read 4 bytes from this device then you will get a nicely random and unpredictable 32-bit seed
+    value, and you can read as many bytes as you need." 
+    (Good Practice in (Pseudo) Random Number Generation for Bioinformatics Applications
+    David Jones, UCL Bioinformatics Group, 2010)*/
     urandom.read(reinterpret_cast<char*>(&seed), sizeof(seed)); //armazena em seed como char
-    urandom.close();
-
-    urandom.read(reinterpret_cast<char*>(&semente), sizeof(semente));
     urandom.close();
 
     cout << "\n**************INICIO FUNCAO 6******************\n" << endl;
@@ -348,76 +367,21 @@ void gera_int_rand(mpz_t chave_prv, const mpz_t n){
     gmp_randstate_t state;
     gmp_randinit_default(state); //necessita inicializar para ultilizar as demais funcoes (por defalut eh mt)
 
-    //State inicializado em hexadecimal
-    cout << "\n\nState: " << state; //STATE NAO EH UM NUMERO GMP, EH UM PONTEIRO!
-    //Por isso ele mostra o endereco de memoria e necessita de cout, assim o valor nao eh alterado
-
-    //COMO CONVERTER O ENDEREÇO DE MEMÓRIA PARA MOSTRAR O VALOR EM HEX OU DECIMAL??????
-
-    //Cria uma chave privada, baseada no STATE sem SEED e no intervalo [1, n-1]
-    mpz_urandomm(chave_prv, state, n); //n = 7237005577332262213973186563042994240857116359379907606001950938285454250989
-    gmp_printf("\nChave privada 1 (sem seed): % Zd ", chave_prv);
-
     //Inicia o gerador de estado da GMP para ultilizar mpz_urandom com a semente fornecida
-    gmp_randseed(state, conv_seed); //USAR O TIME _UI ou conv_seed1    
-    cout << "\n\nState (com seed): " << state; //mantem o endereço de memoria, testar valor após conversão em hex ou deciamal
-    
-    //Gera uma nova chave privada baseada no STATE com SEED e no intervalo [1, n-1]
-    mpz_urandomm(chave_prv, state, n);
-    gmp_printf("\nChave privada 2 (com seed): % Zd ", chave_prv);
-
-    //Teste para saber se a SEED alterou o STATE antes de iniciar
-    //1 - Limpa o STATE
-    //2 - Inicia novamente o STATE com a mesma funcao
-    //3 - Mostra o que está no mesmo endereco de memoria
-    //4 - Gera uma chave privada que é igual a SEM SEED anterior
-    //5 - Mantem o mesmo endereco de memoria 
-    //6 - Gera uma segunda chave privada SEM SEED e o resultado difere do anterior COM SEED
-    
-    //O teste foi realizado com tres chaves e constatou que ao alimentar o STATE com o SEED
-    //ocorre sim uma mudança, pois se replicar apos reinicializacao do STATE os resustados sao identicos.
-    //Assim, ao nao realimentar com SEED apos reinicializacao, o resultado difere, provando que a funcao
-    //randseed altera o valor do STATE ao aplicar a SEED no intervalo de 'n'.
-    
-    //Limpa a memoria do state
-    gmp_randclear(state);
-    //Inicializa o state novamente
-    gmp_randinit_default(state);
-
-    //State inicializado em hexadecimal****REPETE TODO PROCESSO
-    cout << "\n\nState*: " << state; //STATE NAO EH UM NUMERO GMP, EH UM PONTEIRO
-
-    mpz_urandomm(chave_prv, state, n); //n = 7237005577332262213973186563042994240857116359379907606001950938285454250989
-    gmp_printf("\nChave privada 1 (sem seed)*: % Zd ", chave_prv);
-
-    //NAO ALIMENTA COM SEED
-    
-    //Mantem o mesmo endereco de memoria
-    cout << "\n\nState (sem seed)*: " << state;
-    
-    //Mostra outra chave privada, ou seja, 
-    mpz_urandomm(chave_prv, state, n);
-    gmp_printf("\nChave privada 2 (SEM seed)*: % Zd ", chave_prv);
-
+    gmp_randseed(state, conv_seed); //state eh um endereco de memoria
+     
     //________________________FIM GERAR STATE PELA SEMENTE________________________
 
+    //Gera uma chave privada baseada no STATE com SEED e no intervalo [1, n-1]
     do{
-        //Gera um número aleatório no intervalo [1, ordem da curva - 1]
-        mpz_urandomm(chave_prv, state, n);
-        //mpz_add_ui(chave_prv, chave_prv, 1);  // Adiciona 1 para garantir que seja >= 1
-   
-    }while(mpz_cmp_ui(chave_prv, 1) <= 0);
-    
+        mpz_urandomm(chave_prv, state, n);   
+    }while(mpz_cmp_ui(chave_prv, 1) <= 0);//Enquanto chave_prv <= 1
 
-    gmp_printf("\nChave privada TESTE: % Zd ", chave_prv);
-
-    //Teste retorno add 1
-    mpz_add_ui(chave_prv, chave_prv, 1);
+    //Limpa as memorias
+    mpz_clear(conv_seed);   
+    gmp_randclear(state);
 
     cout << "\n**************FIM FUNCAO 6******************\n" << endl;
-
-    //Limpa a memoria do state
-    gmp_randclear(state);
 }
 
 //7. Gera a CHAVE PUBLICA ultilizando a multiplicacao escalar da CHAVE PRIVADA com o Ponto base dado P1(x1,y1)
@@ -446,7 +410,10 @@ int main()
 {
     //!!!!!!!!!!!!!!!!!!!!!!!!!TESTAR CUSTO COMPUTACIONAL VS PRECISÃO!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    //***********************Inicializa os parametros para C25519 de 128-bit de segurança***********************
+    /*********************************************************************
+        Inicializa os parametros para C25519 de 128-bit de segurança
+    *********************************************************************/
+    
     //Melhor iniciar na main() e passa via funcoes pois necessita inicializar e limpar a memoria sempre
     //cofator 8 ("has order h⋅n, where h=8 and where n is a prime number")
 
@@ -475,7 +442,7 @@ int main()
     mpz_add(n, n, n_var); //CONFERIR SE MULTIPLICOU O COFATOR 8!!!!!!!!!!!!!!!!!!
 
     //Ponto base definido por Daniel J. Bernstein Gu = 9 (=0x9)
-    mpz_init_set_ui(x1, 9);
+    mpz_init_set_ui(x_1, 9);
     
     //Sugestao para coordenada base y1
     //Gv = 43114425171068552920764898935933967039\370386198203806730763910166200978582548
@@ -488,8 +455,8 @@ int main()
     //Assim, para pontos racionais temos: Pm(Xm : Zm) = [m]P(X : Z) e Pn(Xn : Zn) = [n]P(X : Z)
 
     //Inicia como zero o inteiro que receberah a mensagem para codificacao e a chave privada
-    mpz_t mensagem, msg_des;
-    mpz_inits(mensagem, msg_des, NULL);
+    mpz_t msg_t_gmp, msg_des;
+    mpz_inits(msg_t_gmp, msg_des, NULL);
 
     //Semente para gerar numero randomico da Chave Privada
     //mpz_t chave_prv, seed;
@@ -497,30 +464,37 @@ int main()
     mpz_t chave_prv;
     mpz_init_set_ui(chave_prv, 0);
 
-    //*****************************************************************************
+    /*********************************************************************/
   
     //Valores iniciados da Curva25519
-    gmp_printf ("\nValor P = % Zd ", p);
-    gmp_printf ("\nValor A = % Zd ", a);
-    //gmp_printf ("\nValor B = % Zd ", b);
-    gmp_printf ("\nValor N = % Zd ", n);
-    gmp_printf ("\nValor X1 = % Zd ", x1);
-    gmp_printf ("\nValor Y1 = % Zd ", y_1);
+    cout << "\n\n**************PARAMETROS CURVA 25519******************\n" << endl;
+    gmp_printf ("\nP  = % Zd ", p);
+    gmp_printf ("\nA  = % Zd ", a);
+    //gmp_printf ("\nB = % Zd ", b);
+    gmp_printf ("\nN  = % Zd ", n);
+    gmp_printf ("\nX1 = % Zd ", x_1);
+    gmp_printf ("\nY1 = % Zd ", y_1);
+    cout << "\n\n*****************************************************\n" << endl;
     
-    cout << "\nDigite a mensagem para codificacao ECC-25519: ";
-    gmp_scanf("%Zd", mensagem); 
-    gmp_printf("\nMensagem: % Zd ", mensagem);
+    string mensagem;
+    cout << "\n\nDigite a mensagem para codificacao ECC-25519: ";
+    cin >> mensagem;
+    
+    //Converte a mensagem para inteiro GMP
+    str_t_gmp(mensagem, msg_t_gmp);
+    gmp_printf("\nMensagem em inteiro (GMP): %Zd \n", msg_t_gmp);
 
-    //Codifica a mensagem (inteiro) inserida (CONVERTER DE QUAISQUER CARACTER PARA INTEIRO!!!!!!!!!!!!!!!!)
-    Ponto msg_cod = codifica_mensagem_para_ponto_da_c25519(mensagem);
+    //Codifica a mensagem (inteiro) inserida para um ponto na curva eliptica C25519
+    Ponto msg_cod = codifica_mensagem_para_ponto_da_c25519(msg_t_gmp);
     gmp_printf("\nMensagem Codificada\nx: % Zd e y: % Zd", msg_cod.x, msg_cod.y);
 
     //Gera a Chave Privada limitada pela ordem da curva eliptica (n), retornando inteiro
     gera_int_rand(chave_prv, n);
     gmp_printf("\nChave privada: % Zd ", chave_prv);
 
-    //Gera a Chave Publica fornecendo a Chave Privada pela multiplicacao escalar ultilizando o ponto inicial (x1, y1)
-    Ponto chave_pbl = gera_chave_pbl(chave_prv, {x1, y_1});
+    //Gera a Chave Publica fornecendo a Chave Privada 
+    //pela multiplicacao escalar ultilizando o ponto inicial (x1, y1)
+    Ponto chave_pbl = gera_chave_pbl(chave_prv, {x_1, y_1});
     gmp_printf("\n\nChave Publica: \nx: % Zd\ny: % Zd", chave_pbl.x, chave_pbl.y);
 
     //encriptar_mensagem(msg_cod, chave_pbl); //RETORNA UM VETOR DE PONTO??????
@@ -531,12 +505,10 @@ int main()
     //gmp_printf("\nMensagem descriptografada: % Zd", msg_des);
     
     //Limpa variáveis para liberar memória
-    //mpz_clear(h);
-    //mpz_clear(b);
-    mpz_clears(p, a, n, x1, y_1, n_var, mensagem, chave_prv, NULL);
+    //mpz_clears(h, b, NULL);
+    mpz_clears(p, a, n, x_1, y_1, n_var, msg_t_gmp, chave_prv, NULL);
 
     cout << endl << endl;
-    //FIM DO CODIGO DE TESTE*/
 
     return 0;
 }

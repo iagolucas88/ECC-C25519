@@ -313,9 +313,11 @@ void gera_int_rand(mpz_t chave_prv, const mpz_t n){
 
     uint64_t semente; //Teste com inteiro, declara int de 64 bits
 
-    //"64-bits of information to avoid repeating the same seed...
-    //...If you read 4 bytes from this device then you will get a nicely random and unpredictable 32-bit seed
-    //value, and you can read as many bytes as you need." (Retirado de um artigo sobre criptografia)
+    /*"64-bits of information to avoid repeating the same seed...
+    ...If you read 4 bytes from this device then you will get a nicely random and unpredictable 32-bit seed
+    value, and you can read as many bytes as you need." 
+    (Good Practice in (Pseudo) Random Number Generation for Bioinformatics Applications
+    David Jones, UCL Bioinformatics Group, 2010)*/
     urandom.read(reinterpret_cast<char*>(&seed), sizeof(seed)); //armazena em seed como char
     urandom.close();
 
