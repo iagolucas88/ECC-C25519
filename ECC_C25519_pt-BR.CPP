@@ -40,7 +40,7 @@ mpz_t p, n, a, x_1, y_1;
 
 
 //1. Converte qualquer caracter para inteiro GMP (tabela ASCII)
-void str_t_gmp(const string& mensagem, mpz_t msg_convertida){
+void str_to_mpz(const string& mensagem, mpz_t msg_convertida){
     mpz_t int_caractere;
     mpz_init(int_caractere);
     mpz_init_set_ui(msg_convertida, 0);
@@ -76,17 +76,16 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
     dif_digitos = 99 - tamanho_msg; 
 
     if(dif_digitos > 0){
-        //Multiplica a mensagem até 99 vezes a quantidade de digitos para garantir que sejam maior que p (aprox 76 digitos)
+        //Multiplica a mensagem até 99 vezes a quantidade de digitos 
+        //para garantir que sejam maior que p (aprox 76 digitos)
         for(int i = 0; i < dif_digitos; i++){        
             mpz_mul_ui(x_msg, x_msg, 10); 
         }
         //Mensagem estendida para efetuar os calculos
         gmp_printf("\nx_msg: %Zd", x_msg);
-    }
+    } else  gmp_printf("\nx_msg: %Zd", x_msg);
 
-    else
-    gmp_printf("\nx_msg: %Zd", x_msg);
-
+/*
     //Teste de Euler [y^((p-1)/2) = 1 (mod p)]: verifica se 'y' 
     //eh residuo quadratico no campo Fp para um primo ímpar 'p'
     //Para C25519 p = 2^(255) - 19, logo (p - 1) = 2^(255) - 20, assim 20 é divisível por 4.
@@ -98,8 +97,9 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
     //Testa se P é primo (quanto maior as repeticoes um nao-primo pode ser definido como provavel)
     int primo = mpz_probab_prime_p(p, 50); //Numero de repeticoes para determinar se eh primo
     cout << "\n\n2=primo | 1=provavel | 0=nao-primo: " << primo << endl;
+*/
 
-    tamanho_msg = 2; //Numero de vezes necessario para determinar um inteiro y² que passe no Teste de Euler
+    tamanho_msg = 1; //Numero de vezes necessario para determinar um inteiro y² que passe no Teste de Euler
     for(int j = 0; j < tamanho_msg; j++){
         //y² = x³ + a*x² + x
         //c25519_msg + j = retorna um número y² na c25519 viável?
@@ -123,11 +123,11 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
         gmp_printf("\n\ny² Sem MOD: %Zd", c25519_msg);
         mpz_mod(c25519_msg, c25519_msg, p); //se resultar no mesmo número o resto eh o msm valor?
         gmp_printf("\ny² Com MOD: %Zd", c25519_msg); //o numerador não pode ser menos, como 'p' eh enorme, o resultado eh o mesmo valor 
-
+/*
         //Calcula Teste de Euler = y^[(p+1)/4] (mod p)
-        mpz_powm_sec(teste_euler, c25519_msg, exp_euler, p); // mpz_powm_SEC eh ultilizado em criptografia pela segurança, pode levar mais tempo
+        //mpz_powm_sec(teste_euler, c25519_msg, exp_euler, p); //mpz_powm_SEC eh ultilizado em criptografia pela segurança, pode levar mais tempo
         gmp_printf("\n\nTeste Euler: %Zd", teste_euler);
-        //mpz_sqrt(teste_euler, teste_euler);
+        mpz_sqrt(teste_euler, teste_euler);
         //gmp_printf("\n\nTeste Euler raiz: %Zd", teste_euler);
 
         //Se o resto do 'teste_euler' e de 'um' forem o mesmo ao dividir 'p'
@@ -159,13 +159,15 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
             return {x_msg, x_msg + j};
             //return P_msg;
         }
-    }
-    
-    cerr << "\nCodificacao da mensagem falhou!" << endl;
-    mpz_set_ui(x_msg, 0);
-    mpz_set_ui(y_msg, 0);
+    }  cerr << "\nCodificacao da mensagem falhou!" << endl;
+    //mpz_set_ui(x_msg, 0);
+    //mpz_set_ui(y_msg, 0);
+*/}
 
     cout << "\n**************FIM FUNCAO 1******************\n" << endl;
+    mpz_sqrt(y_msg, c25519_msg); //Raiz quadrada de 'y²' para 'y'
+    gmp_printf("\n\nx_msg: %Zd", x_msg);
+    gmp_printf("\n\ny_msg: %Zd", y_msg);
 
     //Libera memoria alocada
     mpz_clears(x_msg, y_msg, c25519_msg, A, B, C, NULL);
@@ -357,7 +359,7 @@ void gera_int_rand(mpz_t chave_prv, const mpz_t n){
     //Converte a semente char em mpz_t
     mpz_t conv_seed;
     mpz_init(conv_seed);
-    mpz_import(conv_seed, sizeof(seed), 1, 1, 0, 0, seed); //convertendo de char para mpz_t
+    mpz_import(conv_seed, sizeof(seed), 1, 1, 0, 0, seed); //convertendo char para mpz_t
     gmp_printf("\nSemente convertida: %Zd ", conv_seed);
 
     //________________________FIM GERAR SEMENTE________________________
@@ -415,7 +417,7 @@ int main()
     *********************************************************************/
     
     //Melhor iniciar na main() e passa via funcoes pois necessita inicializar e limpar a memoria sempre
-    //cofator 8 ("has order h⋅n, where h=8 and where n is a prime number")
+    //Cofator 8 ("has order h⋅n, where h=8 and where n is a prime number")
 
     //Numero primo fixo p = (2^255) - 19 = 5,789604462×10⁷⁶
     //p=0x7fffffff ffffffff ffffffff ffffffff ffffffff ffffffff ffffffff ffffffed
@@ -481,7 +483,7 @@ int main()
     cin >> mensagem;
     
     //Converte a mensagem para inteiro GMP
-    str_t_gmp(mensagem, msg_t_gmp);
+    str_to_mpz(mensagem, msg_t_gmp);
     gmp_printf("\nMensagem em inteiro (GMP): %Zd \n", msg_t_gmp);
 
     //Codifica a mensagem (inteiro) inserida para um ponto na curva eliptica C25519
