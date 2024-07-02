@@ -1,0 +1,13 @@
+INICIALIZAR E GERAR CHAVES
+
+1. Recebe a mensagem com quaisquer caracter;
+2. Converte a string para um mpz_t;
+3. Garante que a mensagem possui mais dígitos que o p (primo);
+4. Gera a chave privada (necessita de uma semente confiável e um state)
+que é o 'k' (escalar) necessário para 'mult_escalar';
+5. A chave pública (P3) é gerada pela chave privada usando a operação de multiplicação de pontos (k vezes) na curva elípitica (comença no ponto inicial)
+
+
+ASSINATURA E VERIFICAÇÃO COM ED25519 (a msg precisar ser assinada)
+
+1. 

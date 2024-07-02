@@ -324,7 +324,7 @@ Ponto multiplicacao_escalar(mpz_t chave_prv, Ponto P){
 }
 
 //6. Gerar um numero inteiro randomico no intervalo [1, n-1] e retorna uma CHAVE PRIVADA (k)
-void gera_int_rand(mpz_t chave_prv, const mpz_t n){
+void gera_int_rand(mpz_t chave_prv, mpz_t intervalo_n){
     
     //________________________INICIO GERAR SEMENTE________________________
 
@@ -374,13 +374,18 @@ void gera_int_rand(mpz_t chave_prv, const mpz_t n){
      
     //________________________FIM GERAR STATE PELA SEMENTE________________________
 
+    //Zera a chave privada
+    mpz_init_set_ui(chave_prv, 0);
+
     //Gera uma chave privada baseada no STATE com SEED e no intervalo [1, n-1]
     do{
         mpz_urandomm(chave_prv, state, n);   
-    }while(mpz_cmp_ui(chave_prv, 1) <= 0);//Enquanto chave_prv <= 1
+    } while(mpz_cmp_ui(chave_prv, 1) <= 0);//Enquanto chave_prv <= 1
+
+    gmp_printf("\nChave Privada (k): % Zd ", chave_prv);
 
     //Limpa as memorias
-    mpz_clear(conv_seed);   
+    mpz_clear(conv_seed);
     gmp_randclear(state);
 
     cout << "\n**************FIM FUNCAO 6******************\n" << endl;
@@ -463,8 +468,8 @@ int main()
     //Semente para gerar numero randomico da Chave Privada
     //mpz_t chave_prv, seed;
     //mpz_inits(chave_prv, seed, nullptr);
-    mpz_t chave_prv;
-    mpz_init_set_ui(chave_prv, 0);
+    mpz_t chv_prv, chv_prv_ef;
+    mpz_inits(chv_prv, chv_prv_ef, NULL);
 
     /*********************************************************************/
   
@@ -490,14 +495,15 @@ int main()
     Ponto msg_cod = codifica_mensagem_para_ponto_da_c25519(msg_t_gmp);
     gmp_printf("\nMensagem Codificada\nx: % Zd e y: % Zd", msg_cod.x, msg_cod.y);
 
-    //Gera a Chave Privada limitada pela ordem da curva eliptica (n), retornando inteiro
-    gera_int_rand(chave_prv, n);
-    gmp_printf("\nChave privada: % Zd ", chave_prv);
+    //Gera a Chave Privada (k) limitada pela ordem da curva eliptica (n), retornando inteiro
+    gera_int_rand(chv_prv, n);  
+    gmp_printf("\nChave Privada: % Zd ", chv_prv);
 
     //Gera a Chave Publica fornecendo a Chave Privada 
     //pela multiplicacao escalar ultilizando o ponto inicial (x1, y1)
-    Ponto chave_pbl = gera_chave_pbl(chave_prv, {x_1, y_1});
-    gmp_printf("\n\nChave Publica: \nx: % Zd\ny: % Zd", chave_pbl.x, chave_pbl.y);
+    Ponto chave_pbl = gera_chave_pbl(chv_prv, {x_1, y_1});
+    gmp_printf("\n\nChave Publica \nx: % Zd", chave_pbl.x);
+    gmp_printf("\ny: % Zd", chave_pbl.y);
 
     //encriptar_mensagem(msg_cod, chave_pbl); //RETORNA UM VETOR DE PONTO??????
     //gmp_printf("\nMensagem criptografada\n C1: x = % Zd | y = % Zd", msg_crp.x, msg_crp.y); //DECLARAR !!!!!!!!!!!!!
