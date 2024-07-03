@@ -30,6 +30,27 @@ struct Ponto{
     }
 };
 
+struct Ponto_mpz{
+    mpz_t x, y;
+
+    Ponto_mpz() {
+        mpz_init(x);
+        mpz_init(y);
+    }
+    
+    //Construtor para inicializar o ponto com inteiro mpz_t
+    Ponto_mpz(const mpz_t x_intz, const mpz_t y_intz){
+        mpz_init_set(x, x_intz);
+        mpz_init_set(y, y_intz);
+    }
+
+    //Destrutor para liberar a memória
+    ~Ponto_mpz(){
+        mpz_clear(x);
+        mpz_clear(y);
+    }
+};
+
 //*******DECLARA GLOBALMENTE PARAMETROS CURVA ELIPTICA [E: y² = x² + a*x + b (mod p)]*********************
 //E: curva eliptica no campo GF(q) onde |E| = h*n
 //p: numero primo do campo | n: ordem da curva (numero primo enorme)| h: co-fator (numero pequeno)
@@ -40,7 +61,7 @@ mpz_t p, n, a, x_1, y_1;
 
 
 //1. Converte qualquer caracter para inteiro GMP (tabela ASCII)
-void str_to_mpz(const string& mensagem, mpz_t msg_convertida){
+void string_to_mpz(const string& mensagem, mpz_t msg_convertida){
     mpz_t int_caractere;
     mpz_init(int_caractere);
     mpz_init_set_ui(msg_convertida, 0);
@@ -181,20 +202,96 @@ FAZ-SE NECESSÁRIO NA MULTIPLICACAO ESCALAR OU
 PODE CALCULAR PELAS FÓRMULAS SIMPLIFICADAS DA DE EDWARDS Ed25519 (mais performace)
 */
 
-/*
+
 //3. Calcula o 'ADD' retornado P3(X3,Y3) somente se Y1 != +/- Y2
 //P + Q = Pm + Pn = Pm+n(Xm+n : Zm+n)
 Ponto add_ponto(Ponto P, Ponto Q){
     //A coordenada Zm != +/- Zn
-    //int cmp = mpz_cmpabs_ui(P.y, Q.y);
-    if(mpz_cmpabs_ui(P.y, Q.y) == 0){
+    if(mpz_cmpabs(P.y, Q.y) == 0){
         cerr << "Erro Ponto-ADD (Zm = +/- Zn)!" << endl;
         mpz_set_ui(P.x, 0);
         mpz_set_ui(P.y, 0);
-        return {P.x, P.y}; //REVER!!!!!!!!!!!!!!!!!!!!!!!
+        return {P.x, P.y}; 
     }
 
-    Ponto Pm, Pn;
+    /*_________________________________________________________________________________________________
+    FORMULAS RETIRADAS DO TEOREMA B2 DO APENDIX B (pag. 228)
+    Curve25519: New Diﬃe-Hellman Speed Records
+    ___________________________________________________________________________________________________*/
+
+    /*Você está correto. O procedimento que descrevi anteriormente não foi preciso na formulação das operações de adição de pontos para a curva elíptica Curve25519. Vamos esclarecer o procedimento correto para a adição de pontos em coordenadas de Montgomery.
+
+### Fórmulas de Adição de Pontos na Curve25519 
+Para calcular a adição de pontos \( P = (x_1, z_1) \) e \( Q = (x_2, z_2) \) na Curve25519, 
+usamos um ponto base \( P_0 = (x_0, z_0) \). Isso é parte do método de escada de Montgomery, 
+que permite calcular de forma eficiente a multiplicação escalar na curva elíptica.
+
+### Definição dos Pontos
+Vamos considerar dois pontos na curva:
+
+1. \( P = (x_1, z_1) \)
+2. \( Q = (x_2, z_2) \)
+
+E um ponto base \( P_0 = (x_0, z_0) \).
+### Fórmulas Simplificadas
+
+Dado \( P = (x_1, z_1) \) e \( Q = (x_2, z_2) \), com o ponto base \( P_0 = (x_0, z_0) \):
+
+1. **Calcular \( A \) e \( B \)**:
+   \[ A = (x_1 - z_1) * (x_2 + z_2) \]
+   \[ B = (x_1 + z_1) * (x_2 - z_2) \]
+
+2. **Calcular as somas e diferenças**:
+   \[ C = A + B \]
+   \[ D = A - B \]
+
+3. **Calcular \( x_3 \) e \( z_3 \)**:
+   \[ x_3 = z_0 * C^2 \]
+   \[ z_3 = x_0 * D^2 \]
+
+### Explicação Detalhada
+
+3. **Calcular \( x_3 \) e \( z_3 \)**:
+   Finalmente, as coordenadas \( x_3 \) e \( z_3 \) são calculadas usando as coordenadas do ponto base \( P_0 \) e os intermediários \( C \) e \( D \).
+*/
+
+    mpz_t Qx, Qy, X1_plus_Z1, X1_minus_Z1, X2_plus_Z2, X2_minus_Z2, temp1, temp2;
+
+    mpz_init(X1_plus_Z1);
+    mpz_init(X1_minus_Z1);
+    mpz_init(X2_plus_Z2);
+    mpz_init(X2_minus_Z2);
+    mpz_init(temp1);
+    mpz_init(temp2);
+
+    // Calcula (X1 + Z1) e (X1 - Z1)
+    mpz_add(X1_plus_Z1, P1.x, P1.y);
+    mpz_sub(X1_minus_Z1, P1.x, P1.y);
+
+    // Calcula (X2 + Z2) e (X2 - Z2)
+    mpz_add(X2_plus_Z2, P2.x, P2.y);
+    mpz_sub(X2_minus_Z2, P2.x, P2.y);
+
+    // Calcula temp1 = ((X1 - Z1) * (X2 + Z2) + (X1 + Z1) * (X2 - Z2))^2
+    mpz_mul(temp1, X1_minus_Z1, X2_plus_Z2);
+    mpz_mul(temp2, X1_plus_Z1, X2_minus_Z2);
+    mpz_add(temp1, temp1, temp2);
+    mpz_pow_ui(temp1, temp1, 2);
+
+    // Calcula temp2 = ((X1 - Z1) * (X2 + Z2) - (X1 + Z1) * (X2 - Z2))^2
+    mpz_sub(temp2, temp1, temp2); // Reutiliza temp1 antes de elevar ao quadrado
+    mpz_sub(temp2, temp2, temp2);
+    mpz_pow_ui(temp2, temp2, 2);
+
+    // Multiplica por X_diff e Z_diff de P1 - P2
+    mpz_mul(P3.x, temp1, P1_minus_P2.x);
+    mpz_mul(P3.y, temp2, P1_minus_P2.y);
+
+    // Limpa as variáveis temporárias
+    mpz_clears(X1_plus_Z1, X1_minus_Z1, X2_plus_Z2, X2_minus_Z2, temp1, temp2, NULL);
+
+    return {Qx, Qy};
+/*
     mpz_t A, B, C, D, E, F, G, H;
     mpz_inits(A, B, C, D, E, F, G, H, NULL);
 
@@ -236,21 +333,65 @@ Ponto add_ponto(Ponto P, Ponto Q){
     mpz_clears(A, B, C, D, E, F, G, H, NULL);
 
     return ({P.x, P.y}, {Q.x, Q.y});
-}
 */
+}
+
 
 //4. Calcula o 'DOUBLE' retornado P3(X3,Y3) somente se Y1 != 0 
 //Quando m = n, 2*Pn = P_(2n)(X_(2n) : Z_(2n))
 Ponto double_ponto(Ponto P){
     //A coordenada Z !=0
-    //int cmp = mpz_cmp_ui(P.y, 0);
     if(mpz_cmp_ui(P.y, 0) == 0){
         cerr <<"Erro Ponto-Double (Y = 0)!" << endl;
         mpz_set_ui(P.x, 0);
         mpz_set_ui(P.y, 0);
         return {P.x, P.y};
     }
+    
+    //Ponto Q;
+    //mpz_init(Q.x);
+    //mpz_init(Q.y);
 
+    /*_________________________________________________________________________________________________
+    FORMULAS RETIRADAS DO TEOREMA B1 DO APENDIX B (pag. 227)
+    Curve25519: New Diﬃe-Hellman Speed Records
+    ___________________________________________________________________________________________________*/
+
+    mpz_t Qx, Qy, x_squared, z_squared, var, axz;
+    //Inicia o Pontos Q com os valores de P
+    mpz_init_set(Qx, P.x);
+    mpz_init_set(Qy, P.y);
+    mpz_inits(x_squared, z_squared, var, axz, NULL);
+
+    //x^2 e z^2
+    mpz_pow_ui(x_squared, P.x, 2);
+    mpz_pow_ui(z_squared, P.y, 2);
+
+    //Qx = (x^2 - z^2)^2
+    mpz_sub(var, x_squared, z_squared);
+    mpz_pow_ui(Qx, var, 2);
+
+    //Qy = 4xz(x^2 + axz + z^2)
+    mpz_mul_ui(var, P.x, 486662); //ax = 486662*x 
+    mpz_mul(axz, var, P.y); //axz
+    mpz_add(var, x_squared, axz); //x^2 + axz
+    mpz_add(var, var, z_squared);//x^2 + axz + z^2
+    mpz_mul(var, var, P.x);//x(x^2 + axz + z^2)
+    mpz_mul(var, var, P.y);//xz(x^2 + axz + z^2)
+    mpz_mul_ui(Qy, var, 4);//4xz(x^2 + axz + z^2)
+
+    // Limpa as variáveis temporárias
+    mpz_clears(x_squared, z_squared, var, axz, NULL);
+
+    return {Qx, Qy};
+
+    /*_________________________________________________________________________________________________
+    FORMULAS RETIRADAS DO TOPICO "3.2 Definition of a Twisted Montgomery Curve over a Tower Field"
+    An Implementation of ECC with Twisted Montgomery Curve over 32nd Degree Tower Field on Arduino Uno
+    ___________________________________________________________________________________________________*/
+
+    /*
+    as formulas estão ligeira mente diferentes do que foi apresentado no artigo, tópico real 2.4
     //Ponto Pn;
     mpz_t A, B, C, D, E, F, G, H, Pn_x, Pn_y;
     mpz_inits(A, B, C, D, E, F, G, H, Pn_x, Pn_y, NULL);
@@ -288,14 +429,19 @@ Ponto double_ponto(Ponto P){
     mpz_add(H, E, G);
 
     //Calcula Ponto P2n(X2n : Z2n)
+    //Ponto_mpz Pn; TESTAR!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     //X2n = (Xn + Zn)² * (Xn - Zn)²
     mpz_mul(Pn_x, D, E);
+
+    //NECESSARIO???????????????
     //X2n % p
     mpz_mod(Pn_x, Pn_x, p);
 
     //Z2n = (4*XnZn)*((Xn - Zn)² + ((a + 2)/4)*(4*XnZn)) 
     mpz_mul(Pn_y, F, H);
+    
+    //NECESSITA????
     //Z2n % p
     mpz_mod(Pn_y, Pn_y, p);
 
@@ -303,12 +449,13 @@ Ponto double_ponto(Ponto P){
     mpz_clears(A, B, C, D, E, F, G, H, NULL);
 
     return {Pn_x, Pn_y};
+    */
 }
 
 //5. Multiplicacao escalar chama 'ADD' com a condição de k existir (k shift até encerrar os bits)
 //P1 sempre sera calculado pelo 'DOUBLE'
 Ponto multiplicacao_escalar(mpz_t chave_prv, Ponto P){
-    //Ponto P1 = 
+    //Ponto R, Q;
     mpz_t x2, y2;
     mpz_init_set(x2, P.x);
     mpz_init_set(y2, P.y);
@@ -488,7 +635,7 @@ int main()
     cin >> mensagem;
     
     //Converte a mensagem para inteiro GMP
-    str_to_mpz(mensagem, msg_t_gmp);
+    string_to_mpz(mensagem, msg_t_gmp);
     gmp_printf("\nMensagem em inteiro (GMP): %Zd \n", msg_t_gmp);
 
     //Codifica a mensagem (inteiro) inserida para um ponto na curva eliptica C25519
@@ -514,7 +661,7 @@ int main()
     
     //Limpa variáveis para liberar memória
     //mpz_clears(h, b, NULL);
-    mpz_clears(p, a, n, x_1, y_1, n_var, msg_t_gmp, chave_prv, NULL);
+    mpz_clears(p, a, n, x_1, y_1, n_var, msg_t_gmp, chv_prv, NULL);
 
     cout << endl << endl;
 
