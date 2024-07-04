@@ -55,8 +55,9 @@ struct Ponto_mpz{
 //E: curva eliptica no campo GF(q) onde |E| = h*n
 //p: numero primo do campo | n: ordem da curva (numero primo enorme)| h: co-fator (numero pequeno)
 //a, b: Curva de Weierstrass (Wa,b) onde 'a' e 'b' são elementos de GF(q) com 4a³ + 27b² != 0 
-//P1: ponto base (x1, y1) da curva (qualquer ponto da curva pode ser gerado pelo grupo ciclico <P> ={kP | k = 0,1,2,...} de E)
-mpz_t p, n, a, x_1, y_1;  
+//P0: ponto base (x0, y0) da curva (qualquer ponto da curva pode ser gerado pelo grupo ciclico <P> ={kP | k = 0,1,2,...} de E)
+mpz_t p, n, a;
+Ponto P_0;  
 //mpz_t h, b; //'h' e 'b' nao serao ultilizados, economizando memoria
 
 
@@ -205,13 +206,13 @@ PODE CALCULAR PELAS FÓRMULAS SIMPLIFICADAS DA DE EDWARDS Ed25519 (mais performa
 
 //3. Calcula o 'ADD' retornado P3(X3,Y3) somente se Y1 != +/- Y2
 //P + Q = Pm + Pn = Pm+n(Xm+n : Zm+n)
-Ponto add_ponto(Ponto P, Ponto Q){
+Ponto add_ponto(Ponto P_1, Ponto P_2){
     //A coordenada Zm != +/- Zn
-    if(mpz_cmpabs(P.y, Q.y) == 0){
+    if(mpz_cmpabs(P_1.y, P_2.y) == 0){
         cerr << "Erro Ponto-ADD (Zm = +/- Zn)!" << endl;
-        mpz_set_ui(P.x, 0);
-        mpz_set_ui(P.y, 0);
-        return {P.x, P.y}; 
+        mpz_set_ui(P_1.x, 0);
+        mpz_set_ui(P_1.y, 0);
+        return {P_1.x, P_1.y}; 
     }
 
     /*_________________________________________________________________________________________________
@@ -255,42 +256,39 @@ Dado \( P = (x_1, z_1) \) e \( Q = (x_2, z_2) \), com o ponto base \( P_0 = (x_0
    Finalmente, as coordenadas \( x_3 \) e \( z_3 \) são calculadas usando as coordenadas do ponto base \( P_0 \) e os intermediários \( C \) e \( D \).
 */
 
-    mpz_t Qx, Qy, X1_plus_Z1, X1_minus_Z1, X2_plus_Z2, X2_minus_Z2, temp1, temp2;
+    mpz_t P_3x, P_3y, x1_plus_z1, x1_minus_z1, x2_plus_z2, x2_minus_z2, var, var_1, var_2;
+    mpz_inits(x1_plus_z1, x1_minus_z1, x2_plus_z2, x2_minus_z2, var, var_1, var_2, NULL);
 
-    mpz_init(X1_plus_Z1);
-    mpz_init(X1_minus_Z1);
-    mpz_init(X2_plus_Z2);
-    mpz_init(X2_minus_Z2);
-    mpz_init(temp1);
-    mpz_init(temp2);
+    //(x1 + z1) e (x1 - z1)
+    mpz_add(x1_plus_z1, P_1.x, P_1.y);
+    mpz_sub(x1_minus_z1, P_1.x, P_1.y);
 
-    // Calcula (X1 + Z1) e (X1 - Z1)
-    mpz_add(X1_plus_Z1, P1.x, P1.y);
-    mpz_sub(X1_minus_Z1, P1.x, P1.y);
+    //(x2 + z2) e (x2 - z2)
+    mpz_add(x2_plus_z2, P_2.x, P_2.y);
+    mpz_sub(x2_minus_z2, P_2.x, P_2.y);
 
-    // Calcula (X2 + Z2) e (X2 - Z2)
-    mpz_add(X2_plus_Z2, P2.x, P2.y);
-    mpz_sub(X2_minus_Z2, P2.x, P2.y);
+    //var_1 = (x1 - z1) * (x2 + z2)
+    mpz_mul(var_1, x1_minus_z1, x2_plus_z2);
+    //var_2 = (x1 + z1) * (x2 - z2)
+    mpz_mul(var_2, x1_plus_z1, x2_minus_z2);
 
-    // Calcula temp1 = ((X1 - Z1) * (X2 + Z2) + (X1 + Z1) * (X2 - Z2))^2
-    mpz_mul(temp1, X1_minus_Z1, X2_plus_Z2);
-    mpz_mul(temp2, X1_plus_Z1, X2_minus_Z2);
-    mpz_add(temp1, temp1, temp2);
-    mpz_pow_ui(temp1, temp1, 2);
+    //var = ((x1 - z1) * (x2 + z2) + (x1 + z1) * (x2 - z2))^2
+    mpz_add(var, var_1, var_2);
+    mpz_pow_ui(var, var, 2);
 
-    // Calcula temp2 = ((X1 - Z1) * (X2 + Z2) - (X1 + Z1) * (X2 - Z2))^2
-    mpz_sub(temp2, temp1, temp2); // Reutiliza temp1 antes de elevar ao quadrado
-    mpz_sub(temp2, temp2, temp2);
-    mpz_pow_ui(temp2, temp2, 2);
+    //var_2 = ((x1 - z1) * (x2 + z2) - (x1 + z1) * (x2 - z2))^2
+    mpz_sub(var_2, var_1, var_2);
+    mpz_pow_ui(var_2, var_2, 2);
 
-    // Multiplica por X_diff e Z_diff de P1 - P2
-    mpz_mul(P3.x, temp1, P1_minus_P2.x);
-    mpz_mul(P3.y, temp2, P1_minus_P2.y);
+    //P_3x = z0 * ((x1 - z1) * (x2 + z2) + (x1 + z1) * (x2 - z2))^2 
+    mpz_mul(P_3x, var, P_0.y);
+    //P_3y = x0 * ((x1 - z1) * (x2 + z2) - (x1 + z1) * (x2 - z2))^2
+    mpz_mul(P_3y, var_2, P_0.x);
 
     // Limpa as variáveis temporárias
-    mpz_clears(X1_plus_Z1, X1_minus_Z1, X2_plus_Z2, X2_minus_Z2, temp1, temp2, NULL);
+    mpz_clears(x1_plus_z1, x1_minus_z1, x2_plus_z2, x2_minus_z2, var, var_1, var_2, NULL);
 
-    return {Qx, Qy};
+    return {P_3x, P_3y};    
 /*
     mpz_t A, B, C, D, E, F, G, H;
     mpz_inits(A, B, C, D, E, F, G, H, NULL);
@@ -335,7 +333,6 @@ Dado \( P = (x_1, z_1) \) e \( Q = (x_2, z_2) \), com o ponto base \( P_0 = (x_0
     return ({P.x, P.y}, {Q.x, Q.y});
 */
 }
-
 
 //4. Calcula o 'DOUBLE' retornado P3(X3,Y3) somente se Y1 != 0 
 //Quando m = n, 2*Pn = P_(2n)(X_(2n) : Z_(2n))
@@ -596,13 +593,13 @@ int main()
     mpz_add(n, n, n_var); //CONFERIR SE MULTIPLICOU O COFATOR 8!!!!!!!!!!!!!!!!!!
 
     //Ponto base definido por Daniel J. Bernstein Gu = 9 (=0x9)
-    mpz_init_set_ui(x_1, 9);
+    mpz_init_set_ui(P_0.x, 9);
     
     //Sugestao para coordenada base y1
     //Gv = 43114425171068552920764898935933967039\370386198203806730763910166200978582548
     //(=0x5f51e65e 475f794b 1fe122d3 88b72eb3 6dc2b281 92839e4d d6163a5d 81312c14) 
     //CONFERIR 0x20ae19a1b8a086b4e01edd2c7748d14c923d4d7e6d7c61b229e9c5a27eced3d9 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    mpz_init_set_str(y_1, "14781619447589544791020593568409986887264606134616475288964881837755586237401", 10);
+    mpz_init_set_str(P_0.y, "14781619447589544791020593568409986887264606134616475288964881837755586237401", 10);
 
     //As funcoes ADD e DOUBLE para Curva25519 que eh uma Montgomery Curve (1987) com um numero primo fixo (p)
     //Um ponto racional P(x, y) eh representado em coordeenadas Montgomery P(X : Z), sendo x = X/Z para Z != 0
