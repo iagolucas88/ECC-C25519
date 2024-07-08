@@ -74,7 +74,7 @@ Point point_addition(Point P, Point Q){
 
 //5. Multiplicacao escalar chama 'ADD' com a condição de k existir (k shift até encerrar os bits)
 //P1 sempre sera calculado pelo 'DOUBLE'
-/*
+
 Point scalar_multiply(ZZ k, Point P){
     // std::cout<<"\n k = "<<k<<"\n P.x = "<<P.x<<"\n P.y = "<<P.y<<"\n";
     Point P1 = P, P2;
@@ -94,9 +94,9 @@ Point scalar_multiply(ZZ k, Point P){
     }
     return P2;
 }
-*/
 
-//6. Gerar um numero inteiro randomico e retorna a CHAVE PRIVADA
+
+//6.Gerar um numero inteiro randomico e retorna a CHAVE PRIVADA
 ZZ generate_rand_int(ZZ num){
     ZZ private_key = RandomBnd(num);
     while(private_key == ZZ(0))

@@ -224,7 +224,12 @@ Ponto double_ponto(Ponto P){
         mpz_set_ui(P.y, 0);
         return {P.x, P.y};
     }
+/*_________________________________________________________________________________________________
+    FORMULAS RETIRADAS DO TOPICO "3.2 Definition of a Twisted Montgomery Curve over a Tower Field"
+    An Implementation of ECC with Twisted Montgomery Curve over 32nd Degree Tower Field on Arduino Uno
+    ___________________________________________________________________________________________________*/
 
+    //as formulas estão ligeira mente diferentes do que foi apresentado no artigo, tópico real 2.4
     //Ponto Pn;
     mpz_t A, B, C, D, E, F, G, H, Pn_x, Pn_y;
     mpz_inits(A, B, C, D, E, F, G, H, Pn_x, Pn_y, NULL);
@@ -262,14 +267,19 @@ Ponto double_ponto(Ponto P){
     mpz_add(H, E, G);
 
     //Calcula Ponto P2n(X2n : Z2n)
+    //Ponto_mpz Pn; TESTAR!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     //X2n = (Xn + Zn)² * (Xn - Zn)²
     mpz_mul(Pn_x, D, E);
+
+    //NECESSARIO???????????????
     //X2n % p
     mpz_mod(Pn_x, Pn_x, p);
 
     //Z2n = (4*XnZn)*((Xn - Zn)² + ((a + 2)/4)*(4*XnZn)) 
     mpz_mul(Pn_y, F, H);
+    
+    //NECESSITA????
     //Z2n % p
     mpz_mod(Pn_y, Pn_y, p);
 
@@ -277,6 +287,7 @@ Ponto double_ponto(Ponto P){
     mpz_clears(A, B, C, D, E, F, G, H, NULL);
 
     return {Pn_x, Pn_y};
+
 }
 
 //5. Multiplicacao escalar chama 'ADD' com a condição de k existir (k shift até encerrar os bits)
