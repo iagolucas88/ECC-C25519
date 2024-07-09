@@ -13,12 +13,11 @@ ____________________________________________________________________________*/
 
 using namespace std;
 
-// Cria uma estrutura de ponto (x, y) inteiro
-struct Ponto
-{
+//Cria uma estrutura de ponto (x, y) inteiro
+struct Ponto{
     mpz_t x, y;
 
-    // Construtor para inicializar o ponto com inteiro mpz_t
+    //Construtor para inicializar o ponto com inteiro mpz_t
     Ponto(const mpz_t x_intz, const mpz_t y_intz)
     {
         mpz_init_set(x, x_intz);
@@ -43,8 +42,7 @@ mpz_t P_0x, P_0y;
 // mpz_t h, b; //'h' e 'b' nao serao ultilizados, economizando memoria
 
 // 1. Converte qualquer caracter para inteiro GMP (tabela ASCII)
-void string_to_mpz(const string &mensagem, mpz_t msg_convertida)
-{
+void string_to_mpz(const string &mensagem, mpz_t msg_convertida){
     mpz_t int_caractere;
     mpz_init(int_caractere);
     mpz_init_set_ui(msg_convertida, 0);
@@ -62,8 +60,7 @@ void string_to_mpz(const string &mensagem, mpz_t msg_convertida)
 
 // 1. Curva eliptica 'Curve25519' (E). Mod q
 // Codifica a mensagem para os pontos na curva ultilizada.
-Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg)
-{
+Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
 
     mpz_t x_msg, y_msg, c25519_msg, A, B, C, exp_euler, teste_euler;
     mpz_inits(x_msg, y_msg, c25519_msg, A, B, C, exp_euler, teste_euler, NULL);
@@ -194,30 +191,38 @@ PODE CALCULAR PELAS FÓRMULAS SIMPLIFICADAS DA DE EDWARDS Ed25519 (mais performa
 
 // 3. Calcula o 'ADD' retornado P3(X3,Y3) somente se Y1 != +/- Y2
 // P + Q = Pm + Pn = Pm+n(Xm+n : Zm+n)
-/*
+
 // Point addition specific to Curve25519
-Point addPoint(const Point& P1, const Point& P2, const Point& P1_minus_P2, const mpz_t& prime) {
+Point addPoint(const Point& P1, const Point& P2, const mpz_t& prime) {
     Point P3;
     initPoint(P3);
 
-    mpz_t A, B, C, D, E, F, G, H;
-    mpz_inits(A, B, C, D, E, F, G, H, NULL);
+    mpz_t A, B, C, D, E, F, P1_minus_P2_X;
+    mpz_inits(A, B, C, D, E, F, P1_minus_P2_X, NULL);
+
+    // Calculate P1_minus_P2.X = X1 - X2
+    mpz_sub(P1_minus_P2_X, P1.X, P2.X);
+    mpz_mod(P1_minus_P2_X, P1_minus_P2_X, prime);
 
     // A = (X1 - Z1)*(X2 + Z2)
     mpz_sub(A, P1.X, P1.Z);
     mpz_add(B, P2.X, P2.Z);
     mpz_mul(A, A, B);
+    mpz_mod(A, A, prime);
 
     // B = (X1 + Z1)*(X2 - Z2)
     mpz_add(C, P1.X, P1.Z);
     mpz_sub(D, P2.X, P2.Z);
     mpz_mul(B, C, D);
+    mpz_mod(B, B, prime);
 
     // E = A + B
     mpz_add(E, A, B);
+    mpz_mod(E, E, prime);
 
     // F = A - B
     mpz_sub(F, A, B);
+    mpz_mod(F, F, prime);
 
     // X3 = E^2
     mpz_mul(P3.X, E, E);
@@ -225,17 +230,16 @@ Point addPoint(const Point& P1, const Point& P2, const Point& P1_minus_P2, const
 
     // Z3 = F^2 * (X1 - X2)
     mpz_mul(P3.Z, F, F);
-    mpz_mul(P3.Z, P3.Z, P1_minus_P2.X);
+    mpz_mul(P3.Z, P3.Z, P1_minus_P2_X);
     mpz_mod(P3.Z, P3.Z, prime);
 
     // Clean up
-    mpz_clears(A, B, C, D, E, F, G, H, NULL);
+    mpz_clears(A, B, C, D, E, F, P1_minus_P2_X, NULL);
 
     return P3;
-}*/
+}
 
-Ponto add_ponto(Ponto P_1, Ponto P_2)
-{
+Ponto add_ponto(Ponto P_1, Ponto P_2){
     std::cout << "\n____________________________ADD PONTO________________________________\n" << std::endl; // REMOVER
 
     gmp_printf("\nP1:(%Zd, %Zd)", P_1.x, P_1.y);
@@ -280,14 +284,33 @@ Ponto add_ponto(Ponto P_1, Ponto P_2)
         return {P_3x, P_3y};
     }
 
-    else
-    {
+    else{
         /*_________________________________________________________________________________________________
         FORMULAS RETIRADAS DO TEOREMA B2 DO APENDIX B (pag. 228)
         Curve25519: New Diﬃe-Hellman Speed Records
         ___________________________________________________________________________________________________*/
-        mpz_t x1_plus_z1, x1_minus_z1, x2_plus_z2, x2_minus_z2, var, var_1, var_2;
-        mpz_inits(x1_plus_z1, x1_minus_z1, x2_plus_z2, x2_minus_z2, var, var_1, var_2, NULL);
+        mpz_t P1_minus_P2_x, x1_plus_z1, x1_minus_z1, x2_plus_z2, x2_minus_z2, var, var_1, var_2;
+        mpz_inits(P1_minus_P2_x, x1_plus_z1, x1_minus_z1, x2_plus_z2, x2_minus_z2, var, var_1, var_2, NULL);
+
+
+	/* Explicit formulas database: dbl-1987-m3
+	 *
+	 * source 1987 Montgomery "Speeding the Pollard and elliptic curve
+	 *   methods of factorization", page 261, fifth display, plus
+	 *   common-subexpression elimination
+	 * compute A = X2+Z2
+	 * compute B = X2-Z2
+	 * compute C = X3+Z3
+	 * compute D = X3-Z3
+	 * compute DA = D A
+	 * compute CB = C B
+	 * compute X5 = Z1(DA+CB)^2
+	 * compute Z5 = X1(DA-CB)^2
+	 */
+
+        //P1_minus_P2_x = x1 - x2   mod p
+        mpz_sub(P1_minus_P2_x, P_1.x, P_2.x);
+        mpz_mod(P1_minus_P2_x, P1_minus_P2_x, p);
 
         //(x1 + z1) e (x1 - z1)
         mpz_add(x1_plus_z1, P_1.x, P_1.y);
@@ -297,24 +320,41 @@ Ponto add_ponto(Ponto P_1, Ponto P_2)
         mpz_add(x2_plus_z2, P_2.x, P_2.y);
         mpz_sub(x2_minus_z2, P_2.x, P_2.y);
 
-        // var_1 = (x1 - z1) * (x2 + z2)
+        //var_1 = (x1 - z1) * (x2 + z2) mod p
         mpz_mul(var_1, x1_minus_z1, x2_plus_z2);
-        // var_2 = (x1 + z1) * (x2 - z2)
+        mpz_mod(var_1, var_1, p);
+
+        //var_2 = (x1 + z1) * (x2 - z2) mod p
         mpz_mul(var_2, x1_plus_z1, x2_minus_z2);
+        mpz_mod(var_2, var_2, p);
 
-        // var = ((x1 - z1) * (x2 + z2) + (x1 + z1) * (x2 - z2))^2
+        //var = (x1 - z1) * (x2 + z2) + (x1 + z1) * (x2 - z2)  mod P
         mpz_add(var, var_1, var_2);
-        mpz_pow_ui(var, var, 2);
-
-        // var_2 = ((x1 - z1) * (x2 + z2) - (x1 + z1) * (x2 - z2))^2
+        mpz_mod(var, var, p);
+        
+        //var_2 = (x1 - z1) * (x2 + z2) - (x1 + z1) * (x2 - z2)  mod p
         mpz_sub(var_2, var_1, var_2);
-        mpz_pow_ui(var_2, var_2, 2);
+        mpz_mod(var_2, var_2, p);
+        
+        // P_3x = z0 * ((x1 - z1) * (x2 + z2) + (x1 + z1) * (x2 - z2))^2  mod p
+        mpz_powm_ui(P_3x, var, 2, p);
+        mpz_mul(P_3x, P_3x, P_0y);
+        mpz_mod(P_3x, P_3x, p);
 
+        // P_3y = x0 * ((x1 - z1) * (x2 + z2) - (x1 + z1) * (x2 - z2))^2  mod p
+        mpz_powm_ui(P_3y, var_2, 2, p);
+        //mpz_mul(P_3y, P_3y, P1_minus_P2_x);
+        mpz_mul(P_3y, P_3y, P_0x);
+        mpz_mod(P_3y, P_3y, p);
+        
+        
+        /*
         // P_3x = z0 * ((x1 - z1) * (x2 + z2) + (x1 + z1) * (x2 - z2))^2
         mpz_mul(P_3x, var, P_0y);
 
         // P_3y = x0 * ((x1 - z1) * (x2 + z2) - (x1 + z1) * (x2 - z2))^2
         mpz_mul(P_3y, var_2, P_0x);
+*/
 
         // Limpa as variáveis temporárias
         mpz_clears(x1_plus_z1, x1_minus_z1, x2_plus_z2, x2_minus_z2, var, var_1, var_2, NULL);
@@ -330,8 +370,7 @@ Ponto add_ponto(Ponto P_1, Ponto P_2)
 
 // 4. Calcula o 'DOUBLE' retornado P3(X3,Y3) somente se Y1 != 0
 // Quando m = n, 2*Pn = P_(2n)(X_(2n) : Z_(2n))
-Ponto double_ponto(Ponto P)
-{
+Ponto double_ponto(Ponto P){
     mpz_t double_Px, double_Py, x_squared, z_squared, var, var_1;
     // Inicia o Pontos Q com os valores de P
     mpz_init_set(double_Px, P.x);
@@ -363,6 +402,14 @@ Ponto double_ponto(Ponto P)
     }
 
     else{
+
+        /* Explicit formulas database: dbl-1987-m
+	 *
+	 * source 1987 Montgomery "Speeding the Pollard and elliptic
+	 *   curve methods of factorization", page 261, fourth display
+	 * compute X3 = (X1^2-Z1^2)^2
+	 * compute Z3 = 4 X1 Z1 (X1^2 + a X1 Z1 + Z1^2)
+	 */
         //x^2
         mpz_powm_ui(x_squared, P.x, 2, p);
 
@@ -445,8 +492,7 @@ Ponto scalar_multiplication(const Ponto& P, const mpz_t& k) {
 
 // 5. Multiplicacao escalar chama 'ADD' com a condição de k existir (k shift até encerrar os bits)
 // P1 sempre sera calculado pelo 'DOUBLE'
-Ponto multiplicacao_escalar(mpz_t k_rand, Ponto Ponto_curva)
-{
+Ponto multiplicacao_escalar(mpz_t k_rand, Ponto Ponto_curva){
     std::cout << "\n\n__________________________Mult Escalar______________________________\n" << endl; // REMOVER
 
     mpz_set_ui(k_rand, 3); //teste controlado
@@ -515,14 +561,13 @@ Ponto multiplicacao_escalar(mpz_t k_rand, Ponto Ponto_curva)
         std::cout << "\n________________________FIM Mult Escalar____________________________\n" << endl; // REMOVER
         
         mpz_clears(Bx, By, NULL);
+
         return {Rx, Ry}; // Retorna o resultado da multiplicação escalar
-        // DEVERIA SER R????
     }
 }
 
 // 6. Gerar um numero inteiro randomico no intervalo [1, n-1] e retorna uma CHAVE PRIVADA (k)
-void gera_int_rand(mpz_t intervalo_n, mpz_t k)
-{
+void gera_int_rand(mpz_t k){
 
     //________________________INICIO GERAR SEMENTE________________________
 
@@ -708,7 +753,7 @@ int main()
     gmp_printf("\ny: % Zd", msg_cod.y);
 
     // Gera a Chave Privada (k) limitada pela ordem da curva eliptica (n), retornando inteiro
-    gera_int_rand(n, k);
+    gera_int_rand(k);
     mpz_set(chv_prv, k);
     gmp_printf("\nChave Privada: % Zd ", chv_prv);
 
