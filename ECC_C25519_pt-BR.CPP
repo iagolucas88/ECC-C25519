@@ -191,7 +191,7 @@ PODE CALCULAR PELAS FÓRMULAS SIMPLIFICADAS DA DE EDWARDS Ed25519 (mais performa
 
 // 3. Calcula o 'ADD' retornado P3(X3,Y3) somente se Y1 != +/- Y2
 // P + Q = Pm + Pn = Pm+n(Xm+n : Zm+n)
-
+/*
 // Point addition specific to Curve25519
 Point addPoint(const Point& P1, const Point& P2, const mpz_t& prime) {
     Point P3;
@@ -238,7 +238,7 @@ Point addPoint(const Point& P1, const Point& P2, const mpz_t& prime) {
 
     return P3;
 }
-
+*/
 Ponto add_ponto(Ponto P_1, Ponto P_2){
     std::cout << "\n____________________________ADD PONTO________________________________\n" << std::endl; // REMOVER
 
@@ -258,37 +258,35 @@ Ponto add_ponto(Ponto P_1, Ponto P_2){
         mpz_set_ui(P_3x, 0);
         mpz_set_ui(P_3y, 0);
 
-        //mpz_clears(P_3x, P_3y, NULL);
         return {P_3x, P_3y};
     }
 
+    //Se P_2(0, 0), retorne P_1
     else if((mpz_cmp_ui(P_2.x, 0) == 0 && mpz_cmp_ui(P_2.y, 0) == 0)){
-        // Se P_2(0, 0), retorne P_1
         mpz_set(P_3x, P_1.x);
         mpz_set(P_3y, P_1.y);
 
         gmp_printf("\n\nP2(0, 0), logo\nP3:(%Zd, %Zd)", P_3x, P_3y);
 
-        //mpz_clears(P_3x, P_3y, NULL);
         return {P_3x, P_3y};
     }
 
+    //Se P_1(0, 0), retorne P_2
     else if((mpz_cmp_ui(P_1.x, 0) == 0 && mpz_cmp_ui(P_1.y, 0) == 0)){
-        // Se P_1(0, 0), retorne P_2
+        
         mpz_set(P_3x, P_2.x);
         mpz_set(P_3y, P_2.y);
 
         gmp_printf("\n\nP1(0, 0), logo\nP3:(%Zd, %Zd)", P_3x, P_3y);
 
-        //mpz_clears(P_3x, P_3y, NULL);
         return {P_3x, P_3y};
     }
-
-    else{
-        /*_________________________________________________________________________________________________
+    
+    /*_________________________________________________________________________________________________
         FORMULAS RETIRADAS DO TEOREMA B2 DO APENDIX B (pag. 228)
         Curve25519: New Diﬃe-Hellman Speed Records
-        ___________________________________________________________________________________________________*/
+    ___________________________________________________________________________________________________*/
+    else{
         mpz_t P1_minus_P2_x, x1_plus_z1, x1_minus_z1, x2_plus_z2, x2_minus_z2, var, var_1, var_2;
         mpz_inits(P1_minus_P2_x, x1_plus_z1, x1_minus_z1, x2_plus_z2, x2_minus_z2, var, var_1, var_2, NULL);
 
@@ -307,7 +305,6 @@ Ponto add_ponto(Ponto P_1, Ponto P_2){
 	 * compute X5 = Z1(DA+CB)^2
 	 * compute Z5 = X1(DA-CB)^2
 	 */
-
         //P1_minus_P2_x = x1 - x2   mod p
         mpz_sub(P1_minus_P2_x, P_1.x, P_2.x);
         mpz_mod(P1_minus_P2_x, P1_minus_P2_x, p);
@@ -328,20 +325,20 @@ Ponto add_ponto(Ponto P_1, Ponto P_2){
         mpz_mul(var_2, x1_plus_z1, x2_minus_z2);
         mpz_mod(var_2, var_2, p);
 
-        //var = (x1 - z1) * (x2 + z2) + (x1 + z1) * (x2 - z2)  mod P
-        mpz_add(var, var_1, var_2);
+        //var = (x1 + z1) * (x2 - z2) + (x1 - z1) * (x2 + z2)  mod P
+        mpz_add(var, var_2, var_1);
         mpz_mod(var, var, p);
         
-        //var_2 = (x1 - z1) * (x2 + z2) - (x1 + z1) * (x2 - z2)  mod p
-        mpz_sub(var_2, var_1, var_2);
+        //var_2 = (x1 + z1) * (x2 - z2) - (x1 - z1) * (x2 + z2)  mod p
+        mpz_sub(var_2, var_2, var_1);
         mpz_mod(var_2, var_2, p);
         
-        // P_3x = z0 * ((x1 - z1) * (x2 + z2) + (x1 + z1) * (x2 - z2))^2  mod p
+        //P_3x = z0 * ((x1 + z1) * (x2 - z2) + (x1 - z1) * (x2 + z2))^2  mod p
         mpz_powm_ui(P_3x, var, 2, p);
         mpz_mul(P_3x, P_3x, P_0y);
         mpz_mod(P_3x, P_3x, p);
 
-        // P_3y = x0 * ((x1 - z1) * (x2 + z2) - (x1 + z1) * (x2 - z2))^2  mod p
+        //P_3y = x0 * ((x1 + z1) * (x2 - z2) - (x1 - z1) * (x2 + z2))^2  mod p
         mpz_powm_ui(P_3y, var_2, 2, p);
         //mpz_mul(P_3y, P_3y, P1_minus_P2_x);
         mpz_mul(P_3y, P_3y, P_0x);
@@ -363,7 +360,6 @@ Ponto add_ponto(Ponto P_1, Ponto P_2){
 
         std::cout << "\n__________________________FIM ADD PONTO______________________________\n" << endl; // REMOVER
 
-        //mpz_clears(P_3x, P_3y, NULL);
         return {P_3x, P_3y};
     }
 }
@@ -371,20 +367,20 @@ Ponto add_ponto(Ponto P_1, Ponto P_2){
 // 4. Calcula o 'DOUBLE' retornado P3(X3,Y3) somente se Y1 != 0
 // Quando m = n, 2*Pn = P_(2n)(X_(2n) : Z_(2n))
 Ponto double_ponto(Ponto P){
-    mpz_t double_Px, double_Py, x_squared, z_squared, var, var_1;
-    // Inicia o Pontos Q com os valores de P
-    mpz_init_set(double_Px, P.x);
+    mpz_t double_Px, double_Py, x_plus_z_2, x_minus_z_2, var, var_1; //va_1 não usa
+    //Inicia o ponto a duplicar com os valores de P
+    mpz_init_set(double_Px, P.x);//iniciar em zero
     mpz_init_set(double_Py, P.y);
-    mpz_inits(x_squared, z_squared, var, var_1, NULL);
+    mpz_inits(x_plus_z_2, x_minus_z_2, var, var_1, NULL);
 
     // Verifica se X ou Y != 0
     if(mpz_cmp_ui(P.x, 0) == 0 || mpz_cmp_ui(P.y, 0) == 0){
-        cerr << "\nErro Ponto-Double (Y = 0)!" << endl;
+        cerr << "\nErro Ponto-Double (X ou Y = 0)!" << endl;
         mpz_set_ui(double_Px, 0);
         mpz_set_ui(double_Py, 0);
 
         // Limpa as variáveis temporárias
-        mpz_clears(x_squared, z_squared, var, var_1, NULL);
+        mpz_clears(x_plus_z_2, x_minus_z_2, var, var_1, NULL);
 
         return {double_Px, double_Py};
     }
@@ -396,7 +392,7 @@ Ponto double_ponto(Ponto P){
         mpz_set_ui(double_Py, 0);
 
         // Limpa as variáveis temporárias
-        mpz_clears(x_squared, z_squared, var, var_1, NULL);
+        mpz_clears(x_plus_z_2, x_minus_z_2, var, var_1, NULL);
 
         return {double_Px, double_Py};
     }
@@ -407,27 +403,32 @@ Ponto double_ponto(Ponto P){
 	 *
 	 * source 1987 Montgomery "Speeding the Pollard and elliptic
 	 *   curve methods of factorization", page 261, fourth display
-	 * compute X3 = (X1^2-Z1^2)^2
-	 * compute Z3 = 4 X1 Z1 (X1^2 + a X1 Z1 + Z1^2)
+	 * X3 = (X1 + Z1)^2 * (X1 - Z1)^2
+     * 
+     * 4*X1*Z1 = (X1 + Z1)^2 - (X1 - Z1)^2
+     * 
+	 * Z3 = (4*X1*Z1)*((X1 - Z1)^2 + ((a + 2)/4)*(4*X1*Z1))
 	 */
-        //x^2
-        mpz_powm_ui(x_squared, P.x, 2, p);
+        //(X1 + Z1)^2 
+        mpz_add(x_plus_z_2, P.x, P.y);
+        mpz_powm_ui(x_plus_z_2, P.x, 2, p);
 
-        //z^2
-        mpz_powm_ui(z_squared, P.y, 2, p);
+        //(X1 - Z1)^2
+        mpz_sub(x_minus_z_2, P.x, P.y);
+        mpz_powm_ui(x_minus_z_2, P.y, 2, p);
 
-        //var = x^2 - z^2
-        mpz_sub(var, x_squared, z_squared);
+        //double_Px: X3 = (X1 + Z1)^2 * (X1 - Z1)^2 mod p
+        mpz_mul(double_Px, x_plus_z_2, x_minus_z_2);
+        mpz_mod(double_Px, double_Px, p);
 
-        //double_Px = (x^2 + z^2)^2 mod p
-        mpz_add(var_1, x_squared, z_squared);
-        mpz_powm_ui(double_Px, var_1, 2, p);
+        //var: 4*X1*Z1 = (X1 + Z1)^2 - (X1 - Z1)^2
+        mpz_sub(var, x_plus_z_2, x_minus_z_2);
 
-        //double_Py = var(x^2 + a24*var) mod p
-        mpz_mul(var_1, a24, var);
-        mpz_add(var_1, x_squared, var_1);
-        mpz_mul(var_1, var, var_1);
-        mpz_mod(double_Py, var_1, p);
+        //double_Py: Z3 = (4*X1*Z1)*((X1 - Z1)^2 + ((a + 2)/4)*(4*X1*Z1)) mod p
+        mpz_mul(double_Py, a24, var); //a24 = (a + 2)/4 = 121666
+        mpz_add(double_Py, x_minus_z_2, double_Py);
+        mpz_mul(double_Py, var, double_Py); 
+        mpz_mod(double_Py, double_Py, p);
 
         /*_________________________________________________________________________________________________
         FORMULAS RETIRADAS DO TEOREMA B1 DO APENDIX B (pag. 227)
@@ -452,7 +453,7 @@ Ponto double_ponto(Ponto P){
         mpz_mul_ui(double_Py, var, 4); // 4xz(x^2 + axz + z^2)
 */
         // Limpa as variáveis temporárias
-        mpz_clears(x_squared, z_squared, var, var_1, NULL);
+        mpz_clears(x_plus_z_2, x_minus_z_2, var, var_1, NULL);
 
         return {double_Px, double_Py};
     }
@@ -495,7 +496,7 @@ Ponto scalar_multiplication(const Ponto& P, const mpz_t& k) {
 Ponto multiplicacao_escalar(mpz_t k_rand, Ponto Ponto_curva){
     std::cout << "\n\n__________________________Mult Escalar______________________________\n" << endl; // REMOVER
 
-    mpz_set_ui(k_rand, 3); //teste controlado
+    mpz_set_ui(k_rand, 2); //teste controlado 0010
 
     gmp_printf("\nk: %Zd", k_rand);
 
@@ -516,53 +517,68 @@ Ponto multiplicacao_escalar(mpz_t k_rand, Ponto Ponto_curva){
     }
 
     else{
-        //Ponto R = {NULL, NULL};
-        // Loop over each bit of the scalar
-        for(int i = mpz_sizeinbase(k_rand, 2) - 1; i >= 0; i--) // i = numero de bits - 1
-        {
-            std::cout << "\nBit atual: " << mpz_tstbit(k_rand, i) << " na posição: " << i << std::endl; // Imprime o bit e sua posição
-            if(mpz_tstbit(k_rand, i)){//Se o bit é 1 (bit menos significativo)
-                Ponto R = add_ponto({Bx, By}, {Rx, Ry});
-                mpz_set(Rx, R.x);
-                mpz_set(Ry, R.y);
+        std::cout << "\n\n__________________________DOUBLE______________________________\n" << endl; // REMOVER
 
-                gmp_printf("\n\nR-ADD\nx: % Zd", Rx);
-                gmp_printf("\ny: % Zd", Ry);
+        Ponto R = {Rx, Ry}, B = {Bx, By};
+
+        R = double_ponto(B); //Usa a função double_ponto para duplicar B
+        mpz_set(Rx, R.x);
+        mpz_set(Ry, R.y);
+
+        std::cout << "\n__________________________FIM DOUBLE______________________________\n" << endl; // REMOVER
+
+
+        size_t num_bits = mpz_sizeinbase(k_rand, 2); //Numero de bits de k
+        std::cout << "\nNumero de bits de k: " << num_bits << std::endl;
+
+        // Loop over each bit of the scalar
+        for(size_t i = 0; i < num_bits; ++i){
+
+            std::cout << "\nBit atual: " << mpz_tstbit(k_rand, i) << " na posição: " << i << std::endl; // Imprime o bit e sua posição
+            
+            if(mpz_tstbit(k_rand, num_bits - 1 - i)){//Se o bit é 1 (bit menos significativo)
+                //Se o bit atual é 1: B = add_ponto(B, R); R = double_ponto(R);
+                std::cout <<"\nBit 1\n";
+                Ponto B = add_ponto(B, R);
+                mpz_set(Bx, B.x);
+                mpz_set(By, B.y);
+
+
+                std::cout << "\n\nFIM ADD\n";
+                int c = 0;
+                std::cin >> c;
+
+                gmp_printf("\n\nB-ADD\nx: % Zd", Bx);
+                gmp_printf("\ny: % Zd", By);
+
+                Ponto R = double_ponto(R); //Usa a função double_ponto para duplicar R
+                mpz_set(Rx, R.x);   
+                mpz_set(Ry, R.y);
 
                 //std::cout << "\n\nContinua? K: ";
                 //int c = 0;
                 //std::cin >> c;
-            }
+            } else{
+                std::cout <<"\nBit 1\n";
+                //Se o bit atual é 0: R = add_ponto(B, R); B = double_ponto(B);
+                Ponto R = add_ponto(B, R);
+                mpz_set(Rx, R.x);
+                mpz_set(Ry, R.y);
 
-            std::cout << "\n\n__________________________DOUBLE______________________________\n" << endl; // REMOVER
-            Ponto B = double_ponto({Bx, By}); //Usa a função double_ponto para duplicar B
-            mpz_set(Bx, B.x);
-            mpz_set(By, B.y);
-
-            gmp_printf("\n\nB-DOUBLE\nx: % Zd", Bx);
-            gmp_printf("\ny: % Zd", By);
-            std::cout << "\n__________________________FIM DOUBLE______________________________\n" << endl; // REMOVER
+                Ponto B = double_ponto(B); //Usa a função double_ponto para duplicar B
+                mpz_set(Bx, B.x);
+                mpz_set(By, B.y);
+            }        
+            
         }
-
-        /*
-            while(mpz_cmp_ui(k_rand, 0) > 0){
-                if(mpz_tstbit(k_rand, 0)){ //Se o bit menos significativo de k é 1
-                    Q = add_ponto(R, Q); //Adiciona R a Q
-                }
-                std::cout << "\n\n__________________________DOUBLE______________________________\n" << endl; //REMOVER
-                R = double_ponto(R); //Usa a função double_ponto para duplicar R
-                std::cout << "\n__________________________FIM DOUBLE______________________________\n" << endl; //REMOVER
-                mpz_fdiv_q_2exp(k_rand, k_rand, 1); //Desloca k uma posição para a direita (divide k por 2)
-            }
-            */
-
-        gmp_printf("\nMultiplicacao Escalar\nx: % Zd", Rx); // Apenas x eh necessario para a chave publica
+        
+        gmp_printf("\nMultiplicacao Escalar\nx: % Zd", Bx); // Apenas x eh necessario para a chave publica
 
         std::cout << "\n________________________FIM Mult Escalar____________________________\n" << endl; // REMOVER
         
-        mpz_clears(Bx, By, NULL);
-
-        return {Rx, Ry}; // Retorna o resultado da multiplicação escalar
+        mpz_clears(Rx, Ry, NULL);
+        
+        return {Bx, By}; // Retorna o resultado da multiplicação escalar
     }
 }
 
@@ -681,7 +697,7 @@ int main()
     // Inteiro que A² - 4 nao eh raiz do modulo 'p' (A = 486662 ou 0x76d06)
     //"A2 792 −4 is not a square in GF(p), whereas A+2 is"
     mpz_init_set_ui(a, 486662);
-    mpz_init_set_ui(a24, 121665); //a24 = (a - 2)/4 = 121665
+    mpz_init_set_ui(a24, 121666); //a24 = (a + 2)/4 = 121666
 
     // B = 1 ou 0x01, assim nao se faz necessario inicializar a memoria (Montgomery Curve -> By² = x³ + Ax² + x)
     // mpz_init_set_ui(b, 1);
