@@ -14,11 +14,9 @@ ZZ a = ZZ(-3);  // elliptic cuve parameter
 ZZ b = conv<ZZ>("2455155546008943817740293915197451784769108058161191238065"); // elliptic curve parameter
 ZZ n = conv<ZZ>("6277101735386680763835789423176059013767194773182842284081"); // order of elliptic curve
 
-ZZ Px = conv<ZZ>("2"); // x cordinate of base point
-ZZ Py = conv<ZZ>("3"); // y cordinate of base point
 
-//ZZ Px = conv<ZZ>("602046282375688656758213480587526111916698976636884684818"); // x cordinate of base point
-//ZZ Py = conv<ZZ>("174050332293622031404857552280219410364023488927386650641"); // y cordinate of base point
+ZZ Px = conv<ZZ>("602046282375688656758213480587526111916698976636884684818"); // x cordinate of base point
+ZZ Py = conv<ZZ>("174050332293622031404857552280219410364023488927386650641"); // y cordinate of base point
 
 Point point_doubling(Point P){
     ZZ x1 = P.x, y1 = P.y;
@@ -29,6 +27,7 @@ Point point_doubling(Point P){
     ZZ m = ((3*x1*x1 + a) * InvMod((2*y1) % p, p)) % p;
     ZZ x3 = (m*m - 2*x1) % p;
     ZZ y3 = (m*(x1 - x3) - y1) % p;
+    std::cout<<"\nP3: x = "<<x3<<"\ny = "<<y3<<"\n";
     return {x3, y3};
 }
 
@@ -41,13 +40,13 @@ Point point_addition(Point P, Point Q){
     ZZ m = (((y2 - y1) % p) * InvMod((x2 - x1) % p, p)) % p;
     ZZ x3 = ((m*m) % p - (x1 + x2) % p) % p;
     ZZ y3 = ((m*(x1 - x3)) % p - y1) % p;
+    std::cout<<"\nP3: x = "<<x3<<"\ny = "<<y3<<"\n";
     return {x3, y3};
 }
 
 Point scalar_multiply(ZZ k, Point P){
+    k = ZZ(4); //100 binario
     std::cout<<"\n k = "<<k<<"\n P.x = "<<P.x<<"\n P.y = "<<P.y<<"\n";
-    int t = 0;
-    std::cin >> t;
     Point P1 = P, P2;
     bool p2_initialized = false;
     while(k != ZZ(0)){
@@ -61,12 +60,9 @@ Point scalar_multiply(ZZ k, Point P){
                 std::cout << "P2 : x = " << P2.x << " , y = " << P2.y << "\n";
             }
         }
-        std::cout << "P1 : x = " << P1.x << " , y = " << P1.y << "\n";
         P1 = point_doubling(P1);
         std::cout << "P1 : x = " << P1.x << " , y = " << P1.y << "\n";
         k = RightShift(k, long(1));
-        int D = 0;
-        std::cin >> D;
     }
     return P2;
 }
@@ -126,16 +122,8 @@ int main(){
     std::cin>>message;
     
     //Generating private and public keys
-    //ZZ private_key = choose_random_integer(n);
-    //std::cout<<"\nprivate key : "<<private_key<<"\n";
-
-    //teste controlado
-    ZZ private_key = conv<ZZ>("3");
-
+    ZZ private_key = choose_random_integer(n);
     std::cout<<"\nprivate key : "<<private_key<<"\n";
-
-    int t = 0;
-    std::cin >> t;
 
     Point public_key = generate_public_key(private_key);
     std::cout<<"\npublic key : "<<"x = "<<public_key.x<<" , "<<"y = "<<public_key.y<<"\n";
