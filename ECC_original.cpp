@@ -9,14 +9,19 @@ typedef struct point{
 }Point;
 
 // NIST parameters for 192 bit
-ZZ p = power(ZZ(2), long(192)) - power(ZZ(2), long(64)) - 1;    //feild parameter
-ZZ a = ZZ(-3);  // elliptic cuve parameter
+ZZ p = conv<ZZ>("57896044618658097711785492504343953926634992332820282019728792003956564819949");   //feild parameter
+//ZZ p = power(ZZ(2), long(192)) - power(ZZ(2), long(64)) - 1;    //feild parameter
+ZZ a = ZZ(486662);  // elliptic cuve parameter
+//ZZ a = ZZ(-3);  // elliptic cuve parameter
 ZZ b = conv<ZZ>("2455155546008943817740293915197451784769108058161191238065"); // elliptic curve parameter
-ZZ n = conv<ZZ>("6277101735386680763835789423176059013767194773182842284081"); // order of elliptic curve
+ZZ n = conv<ZZ>("7237005577332262213973186563042994240857116359379907606001950938285454250989"); // order of elliptic curve
+//ZZ n = conv<ZZ>("6277101735386680763835789423176059013767194773182842284081"); // order of elliptic curve
 
+ZZ Px = conv<ZZ>("2"); // x cordinate of base point
+ZZ Py = conv<ZZ>("3"); // y cordinate of base point
 
-ZZ Px = conv<ZZ>("602046282375688656758213480587526111916698976636884684818"); // x cordinate of base point
-ZZ Py = conv<ZZ>("174050332293622031404857552280219410364023488927386650641"); // y cordinate of base point
+//ZZ Px = conv<ZZ>("602046282375688656758213480587526111916698976636884684818"); // x cordinate of base point
+//ZZ Py = conv<ZZ>("174050332293622031404857552280219410364023488927386650641"); // y cordinate of base point
 
 Point point_doubling(Point P){
     ZZ x1 = P.x, y1 = P.y;
@@ -45,7 +50,7 @@ Point point_addition(Point P, Point Q){
 }
 
 Point scalar_multiply(ZZ k, Point P){
-    k = ZZ(4); //100 binario
+    k = ZZ(11); //1011 binario
     std::cout<<"\n k = "<<k<<"\n P.x = "<<P.x<<"\n P.y = "<<P.y<<"\n";
     Point P1 = P, P2;
     bool p2_initialized = false;
@@ -56,11 +61,15 @@ Point scalar_multiply(ZZ k, Point P){
                 P2 = P1;
             }
             else{
+                std::cout <<"\nADD\n";
                 P2 = point_addition(P1, P2);
+                
                 std::cout << "P2 : x = " << P2.x << " , y = " << P2.y << "\n";
             }
         }
+        std::cout <<"\nDOUBLE\n";
         P1 = point_doubling(P1);
+        
         std::cout << "P1 : x = " << P1.x << " , y = " << P1.y << "\n";
         k = RightShift(k, long(1));
     }
@@ -69,14 +78,18 @@ Point scalar_multiply(ZZ k, Point P){
 
 
 ZZ ecc_y_val(ZZ x){
-    return (power(x, long(3)) + a*x + b) % p;
+    //return (power(x, long(3)) + a*x + b) % p;
+    return (power(x, long(3)) + a*power(x, long(2)) + x) % p;
 }
 
 Point encode_message_to_point(ZZ message){
     ZZ xj = 100*message;
     for(long j = 0; j<100; j++){
         ZZ sj = ecc_y_val(xj + j);
+        std::cout<<"\nsj"<<sj;
         if(PowerMod(sj, (p-1)/2, p) == ZZ(1)){
+            ZZ exp = (p-1)/2;
+            std::cout<<"\nexp"<<exp;
             ZZ yj = SqrRootMod(sj, p);
             return {xj + j, yj};
         }

@@ -94,7 +94,6 @@ void string_to_mpz(const string &mensagem, mpz_t msg_convertida){
         mpz_add(msg_convertida, msg_convertida, int_caractere);
     }
 
-    mpz_clear(int_caractere);
 }
 
 // 2. Codifica a mensagem para os pontos na curva 'Curve25519' (E)
@@ -106,6 +105,8 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
     // Necessario copiar para nao alterar o valor da mensagem original e evitar conflitos
     mpz_set(x_msg, msg);
 
+    mpz_set_ui(x_msg, 300); //teste controlado
+
     Ponto P_msg;
     initPonto(P_msg, x_msg, y_msg); // Inicializa o ponto P_msg
 
@@ -115,24 +116,36 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
     // Expoente para o Teste de Euler: exp_euler = (p-1)/2
     mpz_sub_ui(exp_euler, p, 1);
     mpz_cdiv_q_ui(exp_euler, exp_euler, 2);
+    gmp_printf("\nexp_euler: %Zd", exp_euler);
 
     while(true){
         // y² = x³ + a*x² + x  mod p
-        mpz_mul(var, x_msg, x_msg); // x²
+        mpz_powm_ui(var, x_msg, 2, p); // x²
         mpz_mul(var, var, a); // a*x²
         mpz_add(y_msg_squared, var, x_msg); // a*x² + x
         mpz_powm_ui(var, x_msg, 3, p); // x³
         mpz_add(y_msg_squared, y_msg_squared, var); // x³ + a*x² + x
         mpz_mod(y_msg_squared, y_msg_squared, p); // y² = x³ + a*x² + x  mod p
 
+        gmp_printf("\ny_msg_squared: %Zd", y_msg_squared);
         
         // Teste de Euler: verifica se y² é um resíduo quadrático
         mpz_powm(y_msg, y_msg_squared, exp_euler, p); // y^2*[(p-1)/2]  mod p
+        gmp_printf("\ny_msg: %Zd", y_msg);
 
         // Verifica se y^2 eh residuo quadratico (mod prime)
         if(mpz_cmp_ui(y_msg, 1) == 0){
-            mpz_sqrt(y_msg, y_msg_squared); // Raiz quadrada de 'y²' para 'y'
-            mpz_mod(y_msg, y_msg, p); // y = sqrt(y²)  mod p
+            
+            mpz_set(exp_euler, p);
+            mpz_add_ui(exp_euler, exp_euler, 1);
+            mpz_cdiv_q_ui(exp_euler, exp_euler, 4);
+
+          
+
+            mpz_powm(y_msg, y_msg_squared, exp_euler, p); // y = sqrt(y²)
+            
+            //mpz_root(y_msg, y_msg, 2); // Raiz quadrada de 'y²' para 'y'
+            //mpz_mod(y_msg, y_msg, p); // y = sqrt(y²)  mod p
             break;
         }
     // Incrementa x e tenta novamente
@@ -154,54 +167,6 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
 
 // 3. Calcula o 'ADD' retornado P3(X3,Y3) somente se Y1 != +/- Y2
 // P + Q = Pm + Pn = Pm+n(Xm+n : Zm+n)
-/*
-// Point addition specific to Curve25519
-Point addPoint(const Point& P1, const Point& P2, const mpz_t& prime) {
-    Point P3;
-    initPoint(P3);
-
-    mpz_t A, B, C, D, E, F, P1_minus_P2_X;
-    mpz_inits(A, B, C, D, E, F, P1_minus_P2_X, NULL);
-
-    // Calculate P1_minus_P2.X = X1 - X2
-    mpz_sub(P1_minus_P2_X, P1.X, P2.X);
-    mpz_mod(P1_minus_P2_X, P1_minus_P2_X, prime);
-
-    // A = (X1 - Z1)*(X2 + Z2)
-    mpz_sub(A, P1.X, P1.Z);
-    mpz_add(B, P2.X, P2.Z);
-    mpz_mul(A, A, B);
-    mpz_mod(A, A, prime);
-
-    // B = (X1 + Z1)*(X2 - Z2)
-    mpz_add(C, P1.X, P1.Z);
-    mpz_sub(D, P2.X, P2.Z);
-    mpz_mul(B, C, D);
-    mpz_mod(B, B, prime);
-
-    // E = A + B
-    mpz_add(E, A, B);
-    mpz_mod(E, E, prime);
-
-    // F = A - B
-    mpz_sub(F, A, B);
-    mpz_mod(F, F, prime);
-
-    // X3 = E^2
-    mpz_mul(P3.X, E, E);
-    mpz_mod(P3.X, P3.X, prime);
-
-    // Z3 = F^2 * (X1 - X2)
-    mpz_mul(P3.Z, F, F);
-    mpz_mul(P3.Z, P3.Z, P1_minus_P2_X);
-    mpz_mod(P3.Z, P3.Z, prime);
-
-    // Clean up
-    mpz_clears(A, B, C, D, E, F, P1_minus_P2_X, NULL);
-
-    return P3;
-}
-*/
 Ponto add_ponto(Ponto P_1, Ponto P_2){
     cout << "\n____________________________ADD PONTO________________________________\n" << endl; // REMOVER
 
@@ -214,12 +179,8 @@ Ponto add_ponto(Ponto P_1, Ponto P_2){
     Ponto P_3;
     initPonto(P_3, P_3x, P_3y); // Inicializa o ponto P_3
 
-    //cout << "\n\nContinua? ADD: ";
-    //int c = 0;
-    //std::cin >> c;
-
     // A coordenada Y1 != +/- Y2
-    if (mpz_cmpabs(P_1.y, P_2.y) == 0){
+    if(mpz_cmpabs(P_1.y, P_2.y) == 0){
         cout << "\nErro Ponto-ADD (Y1 = +/- Y2)!" << endl;
         mpz_set_ui(P_3.x, 0);
         mpz_set_ui(P_3.y, 0);
@@ -311,15 +272,6 @@ Ponto add_ponto(Ponto P_1, Ponto P_2){
         mpz_mul(P_3y, P_3y, P1_minus_P2_x);
         //mpz_mul(P_3y, P_3y, P_0x);
         mpz_mod(P_3.y, P_3y, p);
-        
-        
-        /*
-        // P_3x = z0 * ((x1 - z1) * (x2 + z2) + (x1 + z1) * (x2 - z2))^2
-        mpz_mul(P_3x, var, P_0y);
-
-        // P_3y = x0 * ((x1 - z1) * (x2 + z2) - (x1 + z1) * (x2 - z2))^2
-        mpz_mul(P_3y, var_2, P_0x);
-*/
 
         // Limpa as variáveis temporárias
         mpz_clears(x1_plus_z1, x1_minus_z1, x2_plus_z2, x2_minus_z2, var, var_1, var_2, NULL);
@@ -402,23 +354,6 @@ Ponto double_ponto(Ponto P){
         FORMULAS RETIRADAS DO TEOREMA B1 DO APENDIX B (pag. 227)
         Curve25519: New Diﬃe-Hellman Speed Records
         ___________________________________________________________________________________________________
-
-        // x^2 e z^2
-        mpz_pow_ui(x_squared, P.x, 2);
-        mpz_pow_ui(z_squared, P.y, 2);
-
-        // Qx = (x^2 - z^2)^2
-        mpz_sub(var, x_squared, z_squared);
-        mpz_pow_ui(double_Px, var, 2);
-
-        // Qy = 4xz(x^2 + axz + z^2)
-        mpz_mul_ui(var, P.x, 486662);  // ax = 486662*x
-        mpz_mul(axz, var, P.y);        // axz
-        mpz_add(var, x_squared, axz);  // x^2 + axz
-        mpz_add(var, var, z_squared);  // x^2 + axz + z^2
-        mpz_mul(var, var, P.x);        // x(x^2 + axz + z^2)
-        mpz_mul(var, var, P.y);        // xz(x^2 + axz + z^2)
-        mpz_mul_ui(double_Py, var, 4); // 4xz(x^2 + axz + z^2)
 */
         // Limpa as variáveis temporárias
         mpz_clears(x_plus_z_2, x_minus_z_2, var, NULL);
@@ -426,38 +361,6 @@ Ponto double_ponto(Ponto P){
         return P_double;
     }
 }
-/*
-Ponto scalar_multiplication(const Ponto& P, const mpz_t& k) {
-    Ponto Q, tempP;
-    initPonto(Q);
-    initPonto(tempP);
-    mpz_set(tempP.x, P.x);
-    mpz_set(tempP.y, P.y);
-
-    bool found = false;
-    for (int i = mpz_sizeinbase(k, 2) - 1; i >= 0; i--) {
-        if (found) {
-            tempP = double_ponto(tempP); // Double the point
-        }
-        if (mpz_tstbit(k, i)) {
-            if (!found) {
-                mpz_set(Q.x, tempP.x);
-                mpz_set(Q.y, tempP.y);
-                found = true;
-            } else {
-                Q = add_ponto(Q, tempP); // Add to the result
-            }
-        }
-    }
-
-    if (!found) {
-        cout << "Scalar is zero, returning point at infinity" << std::endl;
-        // Handle the case for scalar 0, usually returning the point at infinity or an identity element
-    }
-
-    clearPonto(tempP); // Clear temporary point
-    return Q; // Return the result of scalar multiplication
-}*/
 
 // 5. Multiplicacao escalar chama 'ADD' com a condição de k existir (k shift até encerrar os bits)
 // P1 sempre sera calculado pelo 'DOUBLE'
