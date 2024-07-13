@@ -32,7 +32,7 @@ Point point_doubling(Point P){
     ZZ m = ((3*x1*x1 + a) * InvMod((2*y1) % p, p)) % p;
     ZZ x3 = (m*m - 2*x1) % p;
     ZZ y3 = (m*(x1 - x3) - y1) % p;
-    std::cout<<"\nP3: x = "<<x3<<"\ny = "<<y3<<"\n";
+    //std::cout<<"\nP3: x = "<<x3<<"\ny = "<<y3<<"\n";
     return {x3, y3};
 }
 
@@ -45,13 +45,13 @@ Point point_addition(Point P, Point Q){
     ZZ m = (((y2 - y1) % p) * InvMod((x2 - x1) % p, p)) % p;
     ZZ x3 = ((m*m) % p - (x1 + x2) % p) % p;
     ZZ y3 = ((m*(x1 - x3)) % p - y1) % p;
-    std::cout<<"\nP3: x = "<<x3<<"\ny = "<<y3<<"\n";
+    //std::cout<<"\nP3: x = "<<x3<<"\ny = "<<y3<<"\n";
     return {x3, y3};
 }
 
 Point scalar_multiply(ZZ k, Point P){
     k = ZZ(11); //1011 binario
-    std::cout<<"\n k = "<<k<<"\n P.x = "<<P.x<<"\n P.y = "<<P.y<<"\n";
+    //std::cout<<"\n k = "<<k<<"\n P.x = "<<P.x<<"\n P.y = "<<P.y<<"\n";
     Point P1 = P, P2;
     bool p2_initialized = false;
     while(k != ZZ(0)){
@@ -61,16 +61,16 @@ Point scalar_multiply(ZZ k, Point P){
                 P2 = P1;
             }
             else{
-                std::cout <<"\nADD\n";
+                //std::cout <<"\nADD\n";
                 P2 = point_addition(P1, P2);
                 
-                std::cout << "P2 : x = " << P2.x << " , y = " << P2.y << "\n";
+                //std::cout << "P2 : x = " << P2.x << " , y = " << P2.y << "\n";
             }
         }
-        std::cout <<"\nDOUBLE\n";
+        //std::cout <<"\nDOUBLE\n";
         P1 = point_doubling(P1);
         
-        std::cout << "P1 : x = " << P1.x << " , y = " << P1.y << "\n";
+        //std::cout << "P1 : x = " << P1.x << " , y = " << P1.y << "\n";
         k = RightShift(k, long(1));
     }
     return P2;

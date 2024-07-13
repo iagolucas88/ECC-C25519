@@ -138,14 +138,12 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
             
             mpz_set(exp_euler, p);
             mpz_add_ui(exp_euler, exp_euler, 1);
-            mpz_cdiv_q_ui(exp_euler, exp_euler, 4);
+            mpz_fdiv_q_ui(exp_euler, exp_euler, 4);          
 
-          
-
-            mpz_powm(y_msg, y_msg_squared, exp_euler, p); // y = sqrt(y²)
+            //mpz_powm(y_msg, y_msg_squared, exp_euler, p); // y = sqrt(y²)
             
-            //mpz_root(y_msg, y_msg, 2); // Raiz quadrada de 'y²' para 'y'
-            //mpz_mod(y_msg, y_msg, p); // y = sqrt(y²)  mod p
+            mpz_root(y_msg, y_msg_squared, 2); // Raiz quadrada de 'y²' para 'y'
+            mpz_mod(y_msg, y_msg, p); // y = sqrt(y²)  mod p
             break;
         }
     // Incrementa x e tenta novamente
