@@ -17,8 +17,8 @@ ZZ b = conv<ZZ>("2455155546008943817740293915197451784769108058161191238065"); /
 ZZ n = conv<ZZ>("7237005577332262213973186563042994240857116359379907606001950938285454250989"); // order of elliptic curve
 //ZZ n = conv<ZZ>("6277101735386680763835789423176059013767194773182842284081"); // order of elliptic curve
 
-ZZ Px = conv<ZZ>("2"); // x cordinate of base point
-ZZ Py = conv<ZZ>("3"); // y cordinate of base point
+ZZ Px = conv<ZZ>("9"); // x cordinate of base point
+ZZ Py = conv<ZZ>("14781619447589544791020593568409986887264606134616475288964881837755586237401"); // y cordinate of base point
 
 //ZZ Px = conv<ZZ>("602046282375688656758213480587526111916698976636884684818"); // x cordinate of base point
 //ZZ Py = conv<ZZ>("174050332293622031404857552280219410364023488927386650641"); // y cordinate of base point
@@ -51,7 +51,7 @@ Point point_addition(Point P, Point Q){
 
 Point scalar_multiply(ZZ k, Point P){
     k = ZZ(11); //1011 binario
-    //std::cout<<"\n k = "<<k<<"\n P.x = "<<P.x<<"\n P.y = "<<P.y<<"\n";
+    std::cout<<"\n k fixo = "<<k<<"\n P.x = "<<P.x<<"\n P.y = "<<P.y<<"\n";
     Point P1 = P, P2;
     bool p2_initialized = false;
     while(k != ZZ(0)){
@@ -86,11 +86,12 @@ Point encode_message_to_point(ZZ message){
     ZZ xj = 100*message;
     for(long j = 0; j<100; j++){
         ZZ sj = ecc_y_val(xj + j);
-        std::cout<<"\nsj"<<sj;
+        std::cout<<"\nY_msg: "<<sj<<std::endl;
         if(PowerMod(sj, (p-1)/2, p) == ZZ(1)){
             ZZ exp = (p-1)/2;
-            std::cout<<"\nexp"<<exp;
+            std::cout<<"\nExp de Euler: "<<exp;
             ZZ yj = SqrRootMod(sj, p);
+            //std::cout<<"\nY_msg: "<<yj<<std::endl;
             return {xj + j, yj};
         }
     }
@@ -131,18 +132,28 @@ ZZ decrypt_message(Vec<Point> cipher, ZZ private_key){
 
 int main(){
     ZZ message;
+
+    std::cout<<"Programa de comparação\nParametros da C25519" << std::endl;
+    std::cout<<"p = "<<p<<"\n";
+    std::cout<<"a = "<<a<<"\n";
+    //std::cout<<"b = "<<b<<"\n";
+    std::cout<<"n = "<<n<<"\n";
+    std::cout<<"Px = "<<Px<<"\n";
+    std::cout<<"Py = "<<Py<<"\n";
+
     std::cout<<"\nEnter message to encrypt using ECC : ";
     std::cin>>message;
     
     //Generating private and public keys
-    ZZ private_key = choose_random_integer(n);
+    //ZZ private_key = choose_random_integer(n);
+    ZZ private_key = ZZ(11);
     std::cout<<"\nprivate key : "<<private_key<<"\n";
 
     Point public_key = generate_public_key(private_key);
     std::cout<<"\npublic key : "<<"x = "<<public_key.x<<" , "<<"y = "<<public_key.y<<"\n";
 
     Point M = encode_message_to_point(message);
-    std::cout<<"\nencoded message point : x = "<<M.x<<" , y = "<<M.y<<"\n";
+    std::cout<<"\n\nencoded message point : x = "<<M.x<<" , y = "<<M.y<<"\n";
 
     Vec<Point> cipher = encrypt_message(M, public_key);
     std::cout<<"\nc1 : x = "<<cipher[0].x<<", y = "<<cipher[0].y<<"\n";

@@ -2,6 +2,8 @@ comando para compilar (ATENTAR BIBs ULTILIZADAS PARA INCLUIR E COMPILAR)
 
 g++ -I /usr/local/include -L /usr/local/lib -L /lib ECC_Digital_Signature.cpp -o output -lntl -lgmp -lm -pthread
 
+g++ -I /usr/local/include -L /usr/local/lib -L /lib ECC_comparacao.cpp -o ECC_comparacao -lntl -lgmp
+
 
 
 
