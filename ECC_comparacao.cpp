@@ -18,7 +18,7 @@ ZZ n = conv<ZZ>("723700557733226221397318656304299424085711635937990760600195093
 //ZZ n = conv<ZZ>("6277101735386680763835789423176059013767194773182842284081"); // order of elliptic curve
 
 ZZ Px = conv<ZZ>("9"); // x cordinate of base point
-ZZ Py = conv<ZZ>("14781619447589544791020593568409986887264606134616475288964881837755586237401"); // y cordinate of base point
+ZZ Py = conv<ZZ>("11"); // y cordinate of base point
 
 //ZZ Px = conv<ZZ>("602046282375688656758213480587526111916698976636884684818"); // x cordinate of base point
 //ZZ Py = conv<ZZ>("174050332293622031404857552280219410364023488927386650641"); // y cordinate of base point
@@ -32,7 +32,7 @@ Point point_doubling(Point P){
     ZZ m = ((3*x1*x1 + a) * InvMod((2*y1) % p, p)) % p;
     ZZ x3 = (m*m - 2*x1) % p;
     ZZ y3 = (m*(x1 - x3) - y1) % p;
-    //std::cout<<"\nP3: x = "<<x3<<"\ny = "<<y3<<"\n";
+    std::cout<<"\nDOUBLE P3: x = "<<x3<<"\ny = "<<y3<<"\n";
     return {x3, y3};
 }
 
@@ -45,7 +45,7 @@ Point point_addition(Point P, Point Q){
     ZZ m = (((y2 - y1) % p) * InvMod((x2 - x1) % p, p)) % p;
     ZZ x3 = ((m*m) % p - (x1 + x2) % p) % p;
     ZZ y3 = ((m*(x1 - x3)) % p - y1) % p;
-    //std::cout<<"\nP3: x = "<<x3<<"\ny = "<<y3<<"\n";
+    std::cout<<"\nADD = P3: x = "<<x3<<"\ny = "<<y3<<"\n";
     return {x3, y3};
 }
 
@@ -142,8 +142,11 @@ int main(){
     std::cout<<"Py = "<<Py<<"\n";
 
     std::cout<<"\nEnter message to encrypt using ECC : ";
-    std::cin>>message;
-    
+    std::cin>>message;    
+
+    Point M = encode_message_to_point(message);
+    std::cout<<"\n\nencoded message point : x = "<<M.x<<" , y = "<<M.y<<"\n";
+
     //Generating private and public keys
     //ZZ private_key = choose_random_integer(n);
     ZZ private_key = ZZ(11);
@@ -151,9 +154,6 @@ int main(){
 
     Point public_key = generate_public_key(private_key);
     std::cout<<"\npublic key : "<<"x = "<<public_key.x<<" , "<<"y = "<<public_key.y<<"\n";
-
-    Point M = encode_message_to_point(message);
-    std::cout<<"\n\nencoded message point : x = "<<M.x<<" , y = "<<M.y<<"\n";
 
     Vec<Point> cipher = encrypt_message(M, public_key);
     std::cout<<"\nc1 : x = "<<cipher[0].x<<", y = "<<cipher[0].y<<"\n";

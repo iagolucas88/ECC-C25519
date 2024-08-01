@@ -40,7 +40,7 @@ void clearPonto(Ponto& P) {
 // p: numero primo do campo | n: ordem da curva (numero primo enorme)| h: co-fator (numero pequeno)
 // a, b: Curva de Weierstrass (Wa,b) onde 'a' e 'b' são elementos de GF(q) com 4a³ + 27b² != 0
 // P0: ponto base (x0, y0) da curva (qualquer ponto da curva pode ser gerado pelo grupo ciclico <P> ={kP | k = 0,1,2,...} de E)
-mpz_t p, n, a, a24;
+mpz_t p, n, a, a24, zero, one;
 mpz_t P_0x, P_0y;
 // mpz_t h, b; //'h' e 'b' nao serao ultilizados, economizando memoria
 Ponto P_0;
@@ -67,8 +67,11 @@ void inic_parametros_c25519(){
 
     //Ponto base da curva 'Curve25519' (E) definido por Daniel J. Bernstein Gu = 9 e
     //Gv = 43114425171068552920764898935933967039\370386198203806730763910166200978582548
+    //mpz_init_set_ui(P_0x, 9); //x0 = 9
+    //mpz_init_set_str(P_0y, "14781619447589544791020593568409986887264606134616475288964881837755586237401", 10); // y0 = 14781619447589544791020593568409986887264606134616475288964881837755586237401
+
     mpz_init_set_ui(P_0x, 9); //x0 = 9
-    mpz_init_set_str(P_0y, "14781619447589544791020593568409986887264606134616475288964881837755586237401", 10); // y0 = 14781619447589544791020593568409986887264606134616475288964881837755586237401
+    mpz_init_set_str(P_0y, "11", 10); // y0 = 11
 
     // Sugestao para coordenada base y1
     // Gv = 43114425171068552920764898935933967039\370386198203806730763910166200978582548
@@ -76,6 +79,10 @@ void inic_parametros_c25519(){
         
     //Inicializa o ponto base da curva 'Curve25519' (E)
     initPonto(P_0, P_0x, P_0y);
+
+    //Inicializa constantes 0 e 1
+    mpz_init_set_ui(zero, 0);
+    mpz_init_set_ui(one, 1);
 }
 
 // 1. Converte qualquer caracter para inteiro GMP (tabela ASCII)
@@ -114,7 +121,7 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
     // Expoente para o Teste de Euler: exp_euler = (p-1)/2
     mpz_sub_ui(exp_euler, p, 1);
     mpz_cdiv_q_ui(exp_euler, exp_euler, 2);
-    //gmp_printf("\nexp_euler: %Zd", exp_euler);
+    gmp_printf("\nexp_euler: %Zd", exp_euler);
 
     while(true){
         // y² = x³ + a*x² + x  mod p
@@ -125,7 +132,7 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
         mpz_add(y_msg_squared, y_msg_squared, var); // x³ + a*x² + x
         mpz_mod(y_msg_squared, y_msg_squared, p); // y² = x³ + a*x² + x  mod p
 
-        //gmp_printf("\ny_msg_squared: %Zd", y_msg_squared);
+        gmp_printf("\n\ny_msg_squared: %Zd", y_msg_squared);
         
         // Teste de Euler: verifica se y² é um resíduo quadrático
         mpz_powm(y_msg, y_msg_squared, exp_euler, p); // y^2*[(p-1)/2]  mod p
@@ -134,14 +141,28 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
         // Verifica se y^2 eh residuo quadratico (mod prime)
         if(mpz_cmp_ui(y_msg, 1) == 0){
             
-            mpz_set(exp_euler, p);
-            mpz_add_ui(exp_euler, exp_euler, 1);
-            mpz_cdiv_q_ui(exp_euler, exp_euler, 4);
+            // Raiz quadrada de 'y²' para 'y'
+            //mpz_set(exp_euler, p);
+            //mpz_add_ui(exp_euler, exp_euler, 1);
+            //mpz_cdiv_q_ui(exp_euler, exp_euler, 4);
+            gmp_printf("\nexp_euler: %Zd", exp_euler);
 
-            mpz_powm(y_msg, y_msg_squared, exp_euler, p); // y = sqrt(y²)
+            //if(raiz_quadrada_modular(y_msg, y_msg_squared, p)){
+           //     gmp_printf("\nRaiz quadrada modular de %Zd\n mod %Zd\n é %Zd\n", y_msg_squared, p, y_msg);
+            //} else {
+           //     cout << "Não há raiz quadrada modular para o valor fornecido." << endl;
+            //}
+            raiz_quadrada_modular(y_msg, y_msg_squared, p);
+
+
+            //gmp_printf("Raiz quadrada modular de %Zd mod %Zd é %Zd\n", a, p, result);
+    
+            //cout << "Não há raiz quadrada modular para o valor fornecido." << endl;
+
+            //mpz_powm(y_msg, y_msg_squared, exp_euler, p); // y = sqrt(y²)
             
-            mpz_root(y_msg, y_msg_squared, 2); // Raiz quadrada de 'y²' para 'y'
-            mpz_mod(y_msg, y_msg, p); // y = sqrt(y²)  mod p
+            //mpz_root(y_msg, y_msg_squared, 2); // Raiz quadrada de 'y²' para 'y'
+            //mpz_mod(y_msg, y_msg, p); // y = sqrt(y²)  mod p
             break;
         }
     // Incrementa x e tenta novamente
@@ -152,7 +173,7 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
     mpz_set(P_msg.x, x_msg);
     mpz_set(P_msg.y, y_msg);
 
-    //gmp_printf("\ny_msg: %Zd", y_msg);
+    gmp_printf("\n\ny_msg FINAL: %Zd", y_msg);
     //cout << "\n\n____________________________FIM MSG PARA PONTO____________________________\n" << endl;
     
     // Limpa variáveis temporárias
@@ -160,6 +181,81 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
 
     return P_msg;
 }
+
+
+
+//*************************************************************************************************** */
+// Função para calcular o símbolo de Legendre
+int legendre_symbol(const mpz_t a, const mpz_t p) {
+    mpz_t result;
+    mpz_init_set(result, p);
+
+    mpz_sub_ui(result, result, 1);
+    mpz_divexact_ui(result, result, 2);
+    mpz_powm(result, a, result, p);
+
+    int legendre = mpz_cmp_ui(result, 1) == 0 ? 1 : (mpz_cmp_ui(result, 0) == 0 ? 0 : -1);
+    mpz_clear(result);
+    return legendre;
+}
+
+// Função para calcular a raiz quadrada modular usando o algoritmo de Tonelli-Shanks
+void raiz_quadrada_modular(mpz_t result, mpz_t a, mpz_t p) {
+    if (legendre_symbol(a, p) != 1){
+        //return false; //
+        cout << "Não há raiz quadrada" << endl;
+    }
+
+    mpz_t q, s, z, m, c, t, r, b, temp;
+    mpz_inits(q, s, z, m, c, t, r, b, temp, NULL);
+
+    mpz_sub_ui(q, p, 1);
+    mpz_set_ui(s, 0);
+    while (mpz_even_p(q)) {
+        mpz_fdiv_q_2exp(q, q, 1);
+        mpz_add_ui(s, s, 1);
+    }
+
+    mpz_set_ui(z, 2);
+    while (legendre_symbol(z, p) != -1) {
+        mpz_add_ui(z, z, 1);
+    }
+
+    mpz_powm(c, z, q, p);
+   
+    mpz_add_ui(temp, q, 1);
+    mpz_divexact_ui(temp, temp, 2);
+    mpz_powm(r, a, temp, p);
+
+    mpz_powm(t, a, q, p);
+    mpz_set(m, s);
+
+    while (mpz_cmp_ui(t, 1) != 0) {
+        mpz_set_ui(temp, 1);
+        mpz_set_ui(b, 2);
+        while (mpz_cmp_ui(temp, 1) != 0) {
+            mpz_powm(temp, t, b, p);
+            mpz_add_ui(b, b, 1);
+        }
+
+        mpz_sub_ui(temp, m, mpz_get_ui(b));
+        mpz_sub_ui(temp, temp, 1);
+        mpz_powm_ui(temp, c, mpz_get_ui(temp), p);
+        mpz_mul(c, temp, temp);
+        mpz_mod(c, c, p);
+        mpz_mul(r, r, temp);
+        mpz_mod(r, r, p);
+        mpz_mul(t, t, c);
+        mpz_mod(t, t, p);
+        mpz_set(m, b);
+    }
+
+    mpz_set(result, r);
+
+    mpz_clears(q, s, z, m, c, t, r, b, temp, NULL);
+    //return true;
+}
+//*************************************************************************************************** */
 
 // 3. Calcula o 'ADD' retornado P3(X3,Y3) somente se Y1 != +/- Y2
 Ponto add_ponto(Ponto P_1, Ponto P_2){
@@ -401,13 +497,13 @@ Ponto double_ponto(Ponto P){
 
 // 5. Multiplicacao de um ponto por um escalar (k*P)
 Ponto multiplicacao_escalar(mpz_t k_rand, Ponto Ponto_curva){
-    //cout << "\n\n__________________________Mult Escalar______________________________\n" << endl; // REMOVER
+    cout << "\n\n__________________________Mult Escalar______________________________\n" << endl; // REMOVER
 
     Ponto Ponto_R, Ponto_B;
     initPonto(Ponto_R); // Inicializa o ponto Ponto_resultante
     initPonto(Ponto_B, Ponto_curva.x, Ponto_curva.y); // Inicializa o ponto Ponto_curva
 
-    //gmp_printf("\nPonto Curva: (%Zd, %Zd)", Ponto_B.x, Ponto_B.y);
+    gmp_printf("\nPonto Curva: (%Zd, %Zd)", Ponto_B.x, Ponto_B.y);
 
     // Verifica se k é 0
     if(mpz_cmp_ui(k_rand, 0) == 0){
@@ -427,9 +523,11 @@ Ponto multiplicacao_escalar(mpz_t k_rand, Ponto Ponto_curva){
 
         while(mpz_cmp(k_rand, zero) > 0){
             mpz_and(k_bit, k_rand, zero); // k_bit = k & 1 (bit menos significativo)
+            //gmp_printf("\n\nk_bit: %Zd", k_bit);
             if(mpz_cmp(k_bit, zero) > 0){
                 if(!R_inic){
                     R_inic = true;
+                    cout << "\nR_inic true, ponto R é o B\n"; // REMOVER
                     mpz_set(Ponto_R.x, Ponto_B.x);
                     mpz_set(Ponto_R.y, Ponto_B.y);
                 } else{
@@ -442,11 +540,12 @@ Ponto multiplicacao_escalar(mpz_t k_rand, Ponto Ponto_curva){
             Ponto_B = double_ponto(Ponto_B);
             //gmp_printf("\nDOUBLE\nx: %Zd \ny: %Zd", Ponto_B.x, Ponto_B.y);
             mpz_fdiv_q_2exp(k_rand, k_rand, 1); // k = k >> 1 (shift right)
+            //gmp_printf("\n\nk: %Zd", k_rand);
         }
         
-        //gmp_printf("\nMultiplicacao Escalar\nx: %Zd \ny: %Zd", Ponto_R.x, Ponto_R.y); 
+        gmp_printf("\nMultiplicacao Escalar\nx: %Zd \ny: %Zd", Ponto_R.x, Ponto_R.y); 
 
-        //cout << "\n________________________FIM Mult Escalar____________________________\n" << endl; // REMOVER
+        cout << "\n________________________FIM Mult Escalar____________________________\n" << endl; // REMOVER
         
         clearPonto(Ponto_B); // Limpa o ponto Ponto_B
         
@@ -511,10 +610,10 @@ void gera_int_rand(mpz_t k){
     mpz_init_set_ui(k, 0);
 
     // Gera uma chave privada baseada no STATE com SEED e no intervalo [1, n-1]
-    do
-    {
-        mpz_urandomm(k, state, n);
-    } while (mpz_cmp_ui(k, 1) <= 0); // Enquanto k <= 1
+    do{mpz_urandomm(k, state, n);} 
+    while(mpz_cmp_ui(k, 1) <= 0); // Enquanto k <= 1
+
+    mpz_set_ui(k, 11); // k = 11
 
     gmp_printf("\nEscalar randomico (k): % Zd ", k);
 
@@ -640,8 +739,8 @@ int main(){
     mpz_inits(msg_t_gmp, msg_des, NULL);
 
     // Inicia a chave privada e efemera
-    mpz_t chv_prv, chv_prv_ef, k;
-    mpz_inits(chv_prv, chv_prv_ef, k, NULL);
+    mpz_t chv_prv, k;
+    mpz_inits(chv_prv, k, NULL);
 
     // Converte a mensagem para inteiro GMP
     string_to_mpz(mensagem, msg_t_gmp);
@@ -685,7 +784,7 @@ int main(){
 
     // Limpa variáveis para liberar memória
     // mpz_clears(h, b, NULL);
-    mpz_clears(p, a, n, P_0x, P_0y, msg_t_gmp, chv_prv, chv_prv_ef, NULL);
+    mpz_clears(p, a, n, P_0x, P_0y, msg_t_gmp, chv_prv, NULL);
     cout << endl << endl;
 
     return 0;
