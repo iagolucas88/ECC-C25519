@@ -30,7 +30,12 @@ Point point_doubling(Point P){
         return {ZZ(0), ZZ(0)};
     }
     ZZ m = ((3*x1*x1 + a) * InvMod((2*y1) % p, p)) % p;
+    std::cout<<"\nm = "<<m<<std::endl;
     ZZ x3 = (m*m - 2*x1) % p;
+
+    std::cout << "m*m = "<<m*m<<std::endl;
+    std::cout << "2*x1 = "<<2*x1<<std::endl;
+    
     ZZ y3 = (m*(x1 - x3) - y1) % p;
     std::cout<<"\nDOUBLE P3: x = "<<x3<<"\ny = "<<y3<<"\n";
     return {x3, y3};
