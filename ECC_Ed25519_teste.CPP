@@ -13,28 +13,24 @@ ____________________________________________________________________________*/
 
 using namespace std;
 
-struct Ponto
-{
+struct Ponto{
     mpz_t x, y;
 };
 
 // Função para inicializar um ponto com valores mpz_t
-void initPonto(Ponto &P, const mpz_t x_val, const mpz_t y_val)
-{
+void initPonto(Ponto &P, const mpz_t x_val, const mpz_t y_val){
     mpz_init_set(P.x, x_val);
     mpz_init_set(P.y, y_val);
 }
 
 // Função para inicializar um ponto sem valores específicos
-void initPonto(Ponto &P)
-{
+void initPonto(Ponto &P){
     mpz_init(P.x);
     mpz_init(P.y);
 }
 
 // Função para limpar um ponto, liberando recursos
-void clearPonto(Ponto &P)
-{
+void clearPonto(Ponto &P){
     mpz_clear(P.x);
     mpz_clear(P.y);
 }
@@ -50,8 +46,7 @@ mpz_t P_0x, P_0y;
 Ponto P_0;
 
 // 0. Inicializa os parametros da curva eliptica 'Curve25519' (E)
-void inic_parametros_c25519()
-{
+void inic_parametros_c25519(){
     /*_______________________________________________________________________
         Inicializa os parametros para C25519 de 128-bit de segurança
     _________________________________________________________________________
@@ -91,8 +86,7 @@ void inic_parametros_c25519()
 }
 
 // 1. Converte qualquer caracter para inteiro GMP (tabela ASCII)
-void string_to_mpz(const string &mensagem, mpz_t msg_convertida)
-{
+void string_to_mpz(const string &mensagem, mpz_t msg_convertida){
     mpz_t int_caractere;
     mpz_init(int_caractere);
     mpz_init_set_ui(msg_convertida, 0);
@@ -108,8 +102,7 @@ void string_to_mpz(const string &mensagem, mpz_t msg_convertida)
 
 //*************************************************************************************************** */
 // Função para calcular o símbolo de Legendre
-int legendre_symbol(const mpz_t a, const mpz_t p)
-{
+int legendre_symbol(const mpz_t a, const mpz_t p){
     mpz_t result;
     mpz_init_set(result, p);
 
@@ -123,8 +116,7 @@ int legendre_symbol(const mpz_t a, const mpz_t p)
 }
 
 // Função para calcular a raiz quadrada modular usando o algoritmo de Tonelli-Shanks
-void raiz_quadrada_modular(mpz_t result, mpz_t a, mpz_t p)
-{
+void raiz_quadrada_modular(mpz_t result, mpz_t a, mpz_t p){
     if (legendre_symbol(a, p) != 1)
     {
         // return false; //
@@ -187,8 +179,7 @@ void raiz_quadrada_modular(mpz_t result, mpz_t a, mpz_t p)
 //*************************************************************************************************** */
 
 // 2. Codifica a mensagem para os pontos na curva 'Curve25519' (E)
-Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg)
-{
+Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
 
     mpz_t x_msg, y_msg, y_msg_squared, var, exp_euler;
     mpz_inits(x_msg, y_msg, y_msg_squared, var, exp_euler, NULL);
@@ -273,10 +264,6 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg)
 
 // 3. Calcula o 'ADD' retornado P3(X3,Y3) somente se Y1 != +/- Y2
 Ponto add_ponto(Ponto P_1, Ponto P_2){
-    // cout << "\n____________________________ADD PONTO________________________________\n" << endl; // REMOVER
-
-    // gmp_printf("\nP1:(%Zd, %Zd)", P_1.x, P_1.y);
-    // gmp_printf("\nP2:(%Zd, %Zd)", P_2.x, P_2.y);
 
     mpz_t m, var;
     mpz_inits(m, var, NULL);
@@ -285,7 +272,7 @@ Ponto add_ponto(Ponto P_1, Ponto P_2){
     initPonto(P_3); // Inicializa o ponto P_3
 
     // A coordenada Y1 != +/- Y2
-    if (mpz_cmpabs(P_1.y, P_2.y) == 0){
+    if(mpz_cmpabs(P_1.y, P_2.y) == 0){
         cout << "\nErro Ponto-ADD (Y1 = +/- Y2)!" << endl;
         mpz_set_ui(P_3.x, 0);
         mpz_set_ui(P_3.y, 0);
@@ -293,7 +280,7 @@ Ponto add_ponto(Ponto P_1, Ponto P_2){
     }
 
     // Se P_2(0, 0), retorne P_1
-    else if ((mpz_cmp_ui(P_2.x, 0) == 0 && mpz_cmp_ui(P_2.y, 0) == 0)){
+    else if((mpz_cmp_ui(P_2.x, 0) == 0 && mpz_cmp_ui(P_2.y, 0) == 0)){
         mpz_set(P_3.x, P_1.x);
         mpz_set(P_3.y, P_1.y);
 
@@ -302,7 +289,7 @@ Ponto add_ponto(Ponto P_1, Ponto P_2){
     }
 
     // Se P_1(0, 0), retorne P_2
-    else if ((mpz_cmp_ui(P_1.x, 0) == 0 && mpz_cmp_ui(P_1.y, 0) == 0)){
+    else if((mpz_cmp_ui(P_1.x, 0) == 0 && mpz_cmp_ui(P_1.y, 0) == 0)){
 
         mpz_set(P_3.x, P_2.x);
         mpz_set(P_3.y, P_2.y);
@@ -339,75 +326,7 @@ Ponto add_ponto(Ponto P_1, Ponto P_2){
         mpz_sub(P_3.y, P_3.y, P_1.y); // (m*(x1 - x3) mod p - y1)
         mpz_mod(P_3.y, P_3.y, p);     // (m*(x1 - x3) mod p - y1) mod p
 
-        /* Explicit formulas database: dbl-1987-m3
-         *
-         * source 1987 Montgomery "Speeding the Pollard and elliptic curve
-         *   methods of factorization", page 261, fifth display, plus
-         *   common-subexpression elimination
-         * compute A = X1+Z1
-         * compute B = X1-Z1
-         * compute C = X2+Z2
-         * compute D = X2-Z2
-         * compute DA = D A
-         * compute CB = C B
-         * compute X3 = Z0(DA+CB)^2
-         * compute Z3 = X0(DA-CB)^2
-         */
-        /*
-
-         mpz_t P1_minus_P2_x, P1_minus_P2_y, x1_plus_z1, x1_minus_z1, x2_plus_z2, x2_minus_z2, var, var_1, var_2;
-         mpz_inits(P1_minus_P2_x, P1_minus_P2_y, x1_plus_z1, x1_minus_z1, x2_plus_z2, x2_minus_z2, var, var_1, var_2, NULL);
-
-         // P1_minus_P2_x = x1 - x2   mod p
-         mpz_sub(P1_minus_P2_x, P_1.x, P_2.x);
-         mpz_mod(P1_minus_P2_x, P1_minus_P2_x, p);
-
-         // P1_minus_P2_y = y1 - y2   mod p
-         mpz_sub(P1_minus_P2_y, P_1.y, P_2.y);
-         mpz_mod(P1_minus_P2_y, P1_minus_P2_y, p);
-
-         // (x1 + z1) e (x1 - z1)
-         mpz_add(x1_plus_z1, P_1.x, P_1.y);
-         mpz_sub(x1_minus_z1, P_1.x, P_1.y);
-
-         // (x2 + z2) e (x2 - z2)
-         mpz_add(x2_plus_z2, P_2.x, P_2.y);
-         mpz_sub(x2_minus_z2, P_2.x, P_2.y);
-
-         // var_1 = (x1 - z1) * (x2 + z2) mod p
-         mpz_mul(var_1, x1_minus_z1, x2_plus_z2);
-         mpz_mod(var_1, var_1, p);
-
-         // var_2 = (x1 + z1) * (x2 - z2) mod p
-         mpz_mul(var_2, x1_plus_z1, x2_minus_z2);
-         mpz_mod(var_2, var_2, p);
-
-         // var = (x1 + z1) * (x2 - z2) + (x1 - z1) * (x2 + z2)  mod P
-         mpz_add(var, var_2, var_1);
-         mpz_mod(var, var, p);
-
-         // var_2 = (x1 + z1) * (x2 - z2) - (x1 - z1) * (x2 + z2)  mod p
-         mpz_sub(var_2, var_2, var_1);
-         mpz_mod(var_2, var_2, p);
-
-         // P_3x = z0 * ((x1 + z1) * (x2 - z2) + (x1 - z1) * (x2 + z2))^2  mod p
-         mpz_powm_ui(P_3x, var, 2, p);
-         mpz_mul(P_3x, P_3x, P1_minus_P2_y);
-         //mpz_mul(P_3x, P_3x, P_0y);
-         mpz_mod(P_3.x, P_3x, p);
-
-         // P_3y = x0 * ((x1 + z1) * (x2 - z2) - (x1 - z1) * (x2 + z2))^2  mod p
-         mpz_powm_ui(P_3y, var_2, 2, p);
-         mpz_mul(P_3y, P_3y, P1_minus_P2_x);
-         //mpz_mul(P_3y, P_3y, P_0x);
-         mpz_mod(P_3.y, P_3y, p);
-
-         // Limpa as variáveis temporárias
-         mpz_clears(x1_plus_z1, x1_minus_z1, x2_plus_z2, x2_minus_z2, var, var_1, var_2, NULL);*/
-
         // gmp_printf("\nP3:(%Zd, %Zd)", P_3.x, P_3.y);
-
-        // cout << "\n__________________________FIM ADD PONTO______________________________\n" << endl; // REMOVER
 
         return P_3;
     }
@@ -415,7 +334,6 @@ Ponto add_ponto(Ponto P_1, Ponto P_2){
 
 // 4. Calcula o 'DOUBLE' retornado P3(X3,Y3) somente se Y1 != 0
 Ponto double_ponto(Ponto P){
-    // cout << "\n____________________________DOUBLE PONTO________________________________\n" << endl; // REMOVER
     Ponto P_double;
     initPonto(P_double, P.x, P.y); // Inicializa o ponto P_double
 
@@ -452,17 +370,17 @@ Ponto double_ponto(Ponto P){
         mpz_mul(m, m, var);          // ((3*(x1^2) + a) * ((2*y1)^(-1) mod p))
         mpz_mod(m, m, p);            // ((3*(x1^2) + a) * ((2*y1)^(-1) mod p)) mod p
 
-        gmp_printf("\n\nm: %Zd\n", m);
+        //gmp_printf("\n\nm: %Zd\n", m);
 
         // x3 = (m^2 - 2*x1) mod p
         mpz_pow_ui(P_double.x, m, 2);         // m^2 
-        gmp_printf("\n\nm²: %Zd\n", P_double.x);
+        //gmp_printf("\n\nm²: %Zd\n", P_double.x);
         mpz_mul_ui(var, P.x, 2);               // 2*x1
-        gmp_printf("\n\n2*x1: %Zd\n", var);
+        //gmp_printf("\n\n2*x1: %Zd\n", var);
         mpz_sub(P_double.x, P_double.x, var); // (m^2 - 2*x1)
         mpz_mod(P_double.x, P_double.x, p);   // (m^2 - 2*x1) mod p
 
-        gmp_printf("\n\nx3: %Zd\n", P_double.x);
+        //gmp_printf("\n\nx3: %Zd\n", P_double.x);
 
         // y3 = (m*(x1 - x3) - y1) mod p
         mpz_sub(var, P.x, P_double.x);        // x1 - x3
@@ -470,51 +388,7 @@ Ponto double_ponto(Ponto P){
         mpz_sub(P_double.y, P_double.y, P.y); // (m*(x1 - x3) - y1)
         mpz_mod(P_double.y, P_double.y, p);   // (m*(x1 - x3) - y1) mod p
 
-        gmp_printf("\n\ny3: %Zd\n", P_double.y);
-
-        /* Explicit formulas database: dbl-1987-m
-         *
-         * source 1987 Montgomery "Speeding the Pollard and elliptic
-         *   curve methods of factorization", page 261, fourth display
-         * X3 = (X1 + Z1)^2 * (X1 - Z1)^2
-         *
-         * 4*X1*Z1 = (X1 + Z1)^2 - (X1 - Z1)^2
-         *
-         * Z3 = (4*X1*Z1)*((X1 - Z1)^2 + ((a + 2)/4)*(4*X1*Z1))
-         */
-        /*
-
-      mpz_t x_plus_z_2, x_minus_z_2, var;
-      mpz_inits(x_plus_z_2, x_minus_z_2, var, NULL);
-
-      // (X1 + Z1)^2
-      mpz_add(x_plus_z_2, P.x, P.y);
-      mpz_powm_ui(x_plus_z_2, P.x, 2, p);
-
-      // (X1 - Z1)^2
-      mpz_sub(x_minus_z_2, P.x, P.y);
-      mpz_powm_ui(x_minus_z_2, P.y, 2, p);
-
-      // P_double.x: X3 = (X1 + Z1)^2 * (X1 - Z1)^2 mod p
-      mpz_mul(P_double.x, x_plus_z_2, x_minus_z_2);
-      mpz_mod(P_double.x, P_double.x, p);
-
-      // var: 4*X1*Z1 = (X1 + Z1)^2 - (X1 - Z1)^2
-      mpz_sub(var, x_plus_z_2, x_minus_z_2);
-
-      // P_double.y: Z3 = (4*X1*Z1)*((X1 - Z1)^2 + ((a + 2)/4)*(4*X1*Z1)) mod p
-      mpz_mul(P_double.y, a24, var); // a24 = (a + 2)/4 = 121666
-      mpz_add(P_double.y, x_minus_z_2, P_double.y);
-      mpz_mul(P_double.y, var, P_double.y);
-      mpz_mod(P_double.y, P_double.y, p);
-
-      // Limpa as variáveis temporárias
-      mpz_clears(x_plus_z_2, x_minus_z_2, var, NULL);
-
-      /*_________________________________________________________________________________________________
-      FORMULAS RETIRADAS DO TEOREMA B1 DO APENDIX B (pag. 227)
-      Curve25519: New Diﬃe-Hellman Speed Records
-      ____________________________________________________________________________________________________*/
+        //gmp_printf("\n\ny3: %Zd\n", P_double.y);
 
         return P_double;
     }
@@ -522,8 +396,7 @@ Ponto double_ponto(Ponto P){
 
 // 5. Multiplicacao de um ponto por um escalar (k*P)
 Ponto multiplicacao_escalar(mpz_t k_rand, Ponto Ponto_curva){
-    cout << "\n\n__________________________Mult Escalar______________________________\n"
-         << endl; // REMOVER
+    cout << "\n\n__________________________Mult Escalar______________________________\n" << endl; // REMOVER
 
     Ponto Ponto_R, Ponto_B;
     initPonto(Ponto_R);                               // Inicializa o ponto Ponto_resultante
@@ -531,9 +404,12 @@ Ponto multiplicacao_escalar(mpz_t k_rand, Ponto Ponto_curva){
 
     gmp_printf("\nPonto Curva: (%Zd, %Zd)", Ponto_B.x, Ponto_B.y);
 
+    //Para não alterar o valor original de k_rand
+    mpz_t k_var;
+    mpz_init_set(k_var, k_rand);
+
     // Verifica se k é 0
-    if (mpz_cmp_ui(k_rand, 0) == 0)
-    {
+    if(mpz_cmp_ui(k_var, 0) == 0){
         gmp_printf("\nk = 0\nx: % Zd", Ponto_B.x); // Apenas x eh necessario para a chave publica
 
         clearPonto(Ponto_R); // Limpa o ponto Ponto_R
@@ -546,36 +422,32 @@ Ponto multiplicacao_escalar(mpz_t k_rand, Ponto Ponto_curva){
         mpz_t k_bit;
         mpz_init(k_bit);
 
-        while(mpz_cmp(k_rand, zero) > 0){
-            mpz_and(k_bit, k_rand, one); // k_bit = k & 1 (bit menos significativo)
+        while(mpz_cmp(k_var, zero) > 0){
+            mpz_and(k_bit, k_var, one); // k_bit = k & 1 (bit menos significativo)
             gmp_printf("\n\nk_bit: %Zd", k_bit);
             if (mpz_cmp(k_bit, zero) > 0)
             {
-                if (!R_inic)
-                {
+                if (!R_inic){
                     R_inic = true;
                     cout << "\nR_inic true, ponto R é o B\n"; // REMOVER
                     mpz_set(Ponto_R.x, Ponto_B.x);
                     mpz_set(Ponto_R.y, Ponto_B.y);
                 }
-                else
-                {
-                    cout << "\nADD\n"; // REMOVER
+                else{
                     Ponto_R = add_ponto(Ponto_R, Ponto_B);
-                    gmp_printf("\nADD\nx: %Zd \ny: %Zd", Ponto_R.x, Ponto_R.y);
+                    gmp_printf("\n\nADD\nx: %Zd \ny: %Zd", Ponto_R.x, Ponto_R.y);
                 }
             }
-            cout << "\nDOUBLE\n"; // REMOVER
+            cout << "\n\nDOUBLE\n"; // REMOVER
             Ponto_B = double_ponto(Ponto_B);
             gmp_printf("\nx: %Zd \ny: %Zd", Ponto_B.x, Ponto_B.y);
-            mpz_fdiv_q_2exp(k_rand, k_rand, 1); // k = k >> 1 (shift right)
-            gmp_printf("\n\nk: %Zd", k_rand);
+            mpz_fdiv_q_2exp(k_var, k_var, 1); // k = k >> 1 (shift right)
+            gmp_printf("\n\nk: %Zd", k_var);
         }
 
-        gmp_printf("\nMultiplicacao Escalar\nx: %Zd \ny: %Zd", Ponto_R.x, Ponto_R.y);
+        //gmp_printf("\nMultiplicacao Escalar\nx: %Zd \ny: %Zd", Ponto_R.x, Ponto_R.y);
 
-        cout << "\n________________________FIM Mult Escalar____________________________\n"
-             << endl; // REMOVER
+        cout << "\n________________________FIM Mult Escalar____________________________\n" << endl; // REMOVER
 
         clearPonto(Ponto_B); // Limpa o ponto Ponto_B
 
@@ -584,16 +456,14 @@ Ponto multiplicacao_escalar(mpz_t k_rand, Ponto Ponto_curva){
 }
 
 // 6. Gerar um numero inteiro randomico no intervalo [1, n-1] e retorna uma CHAVE PRIVADA (k)
-void gera_int_rand(mpz_t k)
-{
+void gera_int_rand(mpz_t k){
 
     // ________________________INICIO GERAR SEMENTE________________________
 
     // Gera a semente sem bloqueio, diferente do /dev/random que pode bloquear se nao houver entropia suficiente
     // urandom eh seguro o suficiente, mas para criptografia eh garantido ultilizar random (porém pode haver bloqueio e demorar)
     ifstream urandom("/dev/urandom", ios::binary);
-    if (!urandom)
-    {
+    if(!urandom){
         cout << "Erro ao abrir /dev/urandom" << endl;
         return;
     }
@@ -607,15 +477,14 @@ void gera_int_rand(mpz_t k)
     urandom.read(reinterpret_cast<char *>(&seed), sizeof(seed)); // armazena em seed como char
     urandom.close();
 
-    cout << "\n\n____________________________RANDOMICA________________________________\n"
-         << endl;
-
+    //cout << "\n\n____________________________RANDOMICA________________________________\n" << endl;
+/*
     cout << "Seed: ";
-    for (int i = 0; i < sizeof(seed); ++i)
-    {
+    for(int i = 0; i < sizeof(seed); ++i){
         cout << hex << static_cast<int>(seed[i]);
     }
     cout << dec << endl;
+*/
 
     // Semente gerada em um inteiro
     // cout << "\nTamanho da Seed: " << sizeof(seed) << endl;
@@ -649,41 +518,38 @@ void gera_int_rand(mpz_t k)
 
     mpz_set_ui(k, 11); // k = 11
 
-    gmp_printf("\nEscalar randomico (k): % Zd ", k);
+    //gmp_printf("\nEscalar randomico (k): % Zd ", k);
 
     // Limpa as memorias
     mpz_clear(conv_seed);
     gmp_randclear(state);
 
-    cout << "\n___________________________FIM RANDOMICA____________________________\n"
-         << endl;
+    //cout << "\n___________________________FIM RANDOMICA____________________________\n" << endl;
 }
 
 // 7. Gera a CHAVE PUBLICA ultilizando a multiplicacao escalar da CHAVE PRIVADA com o Ponto base dado P_0
-Ponto gera_chave_pbl(mpz_t chave_prv, Ponto P0)
-{ // pode fazer na main() apenas igualando o ponto
+Ponto gera_chave_pbl(mpz_t chave_prv, Ponto P0){ // pode fazer na main() apenas igualando o ponto
     return multiplicacao_escalar(chave_prv, P0);
 }
 
 // 8. Encripta a mensagem ultilizando a CHAVE PUBLICA
-void encriptar_mensagem(Ponto msg_cod, Ponto chave_pbl, Ponto &C1, Ponto &C2)
-{
+void encriptar_mensagem(Ponto msg_cod, Ponto chave_pbl, Ponto &C1, Ponto &C2){
     cout << "\n\n____________________________ENCRYPT________________________________\n"
          << endl; // REMOVER
 
-    gmp_printf("\nMensagem Codificada\nx: % Zd", msg_cod.x);
-    gmp_printf("\ny: % Zd", msg_cod.y);
+    //gmp_printf("\nMensagem Codificada\nx: % Zd", msg_cod.x);
+    //gmp_printf("\ny: % Zd", msg_cod.y);
 
-    gmp_printf("\n\nChave Publica\nx: % Zd", chave_pbl.x);
-    gmp_printf("\ny: % Zd", chave_pbl.y);
+    //gmp_printf("\n\nChave Publica\nx: % Zd", chave_pbl.x);
+    //gmp_printf("\ny: % Zd", chave_pbl.y);
 
-    gmp_printf("\n\nCifras ANTES\n C1: x: %Zd | y: %Zd", C1.x, C2.y);
-    gmp_printf("\n C2: x: %Zd | y: %Zd", C2.x, C2.y);
+    //gmp_printf("\n\nCifras ANTES\n C1: x: %Zd | y: %Zd", C1.x, C2.y);
+    //gmp_printf("\n C2: x: %Zd | y: %Zd", C2.x, C2.y);
 
-    gmp_printf("\n\nP  = % Zd ", p);
-    gmp_printf("\nN  = % Zd ", n);
-    gmp_printf("\nX0 = % Zd ", P_0x);
-    gmp_printf("\nY0 = % Zd ", P_0y);
+    //gmp_printf("\n\nP  = % Zd ", p);
+    //gmp_printf("\nN  = % Zd ", n);
+    //gmp_printf("\nX0 = % Zd ", P_0x);
+    //gmp_printf("\nY0 = % Zd ", P_0y);
 
     mpz_t chv_prv_efemera;
     mpz_init(chv_prv_efemera);
@@ -695,21 +561,25 @@ void encriptar_mensagem(Ponto msg_cod, Ponto chave_pbl, Ponto &C1, Ponto &C2)
     initPonto(C2);
     initPonto(k_mult_chv_pbl);
 
+    gmp_printf("\nC1 - k: %Zd", chv_prv_efemera);
+
     C1 = multiplicacao_escalar(chv_prv_efemera, P_0);                   // C1 = k*P_0
+
+    //teste para retornar o valor de k, pois está zerando.
+    //mpz_set_ui(chv_prv_efemera, 11);  // k = 11
+
     k_mult_chv_pbl = multiplicacao_escalar(chv_prv_efemera, chave_pbl); // k*Pb
     C2 = add_ponto(msg_cod, k_mult_chv_pbl);                            // C2 = Pm + k*Pb
 
-    gmp_printf("\n\nCifras DEPOIS\n C1: x: %Zd | y: %Zd", C1.x, C2.y);
-    gmp_printf("\n C2: x: %Zd | y: %Zd", C2.x, C2.y);
+    //gmp_printf("\n\nCifras DEPOIS\n C1: x: %Zd | y: %Zd", C1.x, C2.y);
+    //gmp_printf("\n C2: x: %Zd | y: %Zd", C2.x, C2.y);
 
     mpz_clear(chv_prv_efemera);
-    cout << "\n\n________________________FIM ENCRYPT________________________________\n"
-         << endl; // REMOVER
+    cout << "\n\n________________________FIM ENCRYPT________________________________\n" << endl; // REMOVER
 }
 
 // 9. Decripta a mensagem ultilizando a CHAVE PRIVADA
-Ponto decriptar_mensagem(Ponto C1, Ponto C2, mpz_t chave_prv)
-{
+Ponto decriptar_mensagem(Ponto C1, Ponto C2, mpz_t chave_prv){
     // cout << "\n\n____________________________DECRYPT________________________________\n" << endl; // REMOVER
 
     Ponto P_msg, chv_prv_mult_C1;
@@ -730,8 +600,7 @@ Ponto decriptar_mensagem(Ponto C1, Ponto C2, mpz_t chave_prv)
 }
 
 // 10. Decodifica a mensagem para string
-void descodifica_ponto_para_string(mpz_t msg_x)
-{
+void descodifica_ponto_para_string(mpz_t msg_x){
     mpz_t var, var_1, var_2;
     mpz_inits(var, var_1, var_2, NULL);
 
@@ -758,8 +627,7 @@ void descodifica_ponto_para_string(mpz_t msg_x)
     mpz_clears(var, var_1, var_2, NULL);
 }
 
-int main()
-{
+int main(){
     //!!!!!!!!!!!!!!!!!!!!!!!!!TESTAR CUSTO COMPUTACIONAL VS PRECISÃO!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     inic_parametros_c25519(); // Inicializa os parametros da curva eliptica C25519
