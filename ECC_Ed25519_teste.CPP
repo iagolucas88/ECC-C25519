@@ -694,6 +694,22 @@ int main(){
     // Decodifica a mensagem para string original
     descodifica_ponto_para_string(msg_dec.x);
 
+    mpz_t p, P0x, P0y;
+    mpz_inits(p, P0x, P0y, NULL);   
+    Ponto P0;
+
+    mpz_init_set_ui(P0x, 9); //x0 = 9
+    mpz_init_set_str(P0y, "14781619447589544791020593568409986887264606134616475288964881837755586237401", 10); // y0 = 14781619447589544791020593568409986887264606134616475288964881837755586237401
+
+    initPonto(P0, P0x, P0y);
+
+    gmp_printf("\n\nP0 INICIAL:\n x = %Zd | y = %Zd", P0.x, P0.y);
+
+    P0 = double_ponto(P0);
+
+    gmp_printf("\n\nP0 DOUBLE:\n x = %Zd | y = %Zd", P0.x, P0.y);
+
+
     // Limpa variáveis para liberar memória
     // mpz_clears(h, b, NULL);
     mpz_clears(p, a, n, P_0x, P_0y, msg_t_gmp, chv_prv, NULL);

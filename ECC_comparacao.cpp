@@ -167,6 +167,15 @@ int main(){
 
     ZZ decrypted_message = decrypt_message(cipher, private_key);
     std::cout<<"\ndecrypted message = "<<decrypted_message<<"\n";
+
+    Point T;
+    T.x = 9;
+    T.y =  conv<ZZ>("14781619447589544791020593568409986887264606134616475288964881837755586237401");
+
+    std::cout<<"\nP0 INICIAL:\n x = "<<T.x<<" , y = "<<T.y<<"\n";
+
+    T = point_doubling(T);
+    std::cout<<"\nP0 DOUBLE:\n x = "<<T.x<<" , y = "<<T.y<<"\n";
     
     return 0;
 }
