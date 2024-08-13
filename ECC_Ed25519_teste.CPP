@@ -67,15 +67,12 @@ void inic_parametros_c25519(){
 
     // Ponto base da curva 'Curve25519' (E) definido por Daniel J. Bernstein Gu = 9 e
     // Gv = 43114425171068552920764898935933967039\370386198203806730763910166200978582548
+    // o valor da coordenada y é pouco relevante para os calculos
     // mpz_init_set_ui(P_0x, 9); //x0 = 9
     // mpz_init_set_str(P_0y, "14781619447589544791020593568409986887264606134616475288964881837755586237401", 10); // y0 = 14781619447589544791020593568409986887264606134616475288964881837755586237401
 
     mpz_init_set_ui(P_0x, 9);         // x0 = 9
     mpz_init_set_str(P_0y, "11", 10); // y0 = 11
-
-    // Sugestao para coordenada base y1
-    // Gv = 43114425171068552920764898935933967039\370386198203806730763910166200978582548
-    //(=0x5f51e65e 475f794b 1fe122d3 88b72eb3 6dc2b281 92839e4d d6163a5d 81312c14)
 
     // Inicializa o ponto base da curva 'Curve25519' (E)
     initPonto(P_0, P_0x, P_0y);
@@ -91,8 +88,7 @@ void string_to_mpz(const string &mensagem, mpz_t msg_convertida){
     mpz_init(int_caractere);
     mpz_init_set_ui(msg_convertida, 0);
 
-    for (size_t i = 0; i < mensagem.length(); ++i)
-    {
+    for(size_t i = 0; i < mensagem.length(); ++i){
         unsigned char c = mensagem[i];
         mpz_ui_pow_ui(int_caractere, 256, i);        // 256^i
         mpz_mul_ui(int_caractere, int_caractere, c); // (256^i) * valor ASCII do caractere
@@ -201,8 +197,7 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
     mpz_cdiv_q_ui(exp_euler, exp_euler, 2);
     gmp_printf("\nexp_euler: %Zd", exp_euler);
 
-    while (true)
-    {
+    while(true){
         // y² = x³ + a*x² + x  mod p
         mpz_powm_ui(var, x_msg, 2, p);              // x²
         mpz_mul(var, var, a);                       // a*x²
@@ -609,8 +604,7 @@ void descodifica_ponto_para_string(mpz_t msg_x){
 
     string mensagem;
     char c;
-    while (mpz_cmp_ui(var, 0) > 0)
-    {
+    while(mpz_cmp_ui(var, 0) > 0){
         mpz_tdiv_r_ui(var_1, var, 256); // var_1 = var % 256
         c = mpz_get_ui(var_1);          // converte para char
         mensagem.push_back(c);          // adiciona o char na string
@@ -618,8 +612,7 @@ void descodifica_ponto_para_string(mpz_t msg_x){
     }
 
     cout << "\n\nMensagem Decodificada: ";
-    for (int i = 0; i < mensagem.length(); ++i)
-    {
+    for(int i = 0; i < mensagem.length(); ++i){
         cout << mensagem[i];
     }
     cout << endl;
