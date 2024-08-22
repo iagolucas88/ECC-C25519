@@ -68,11 +68,11 @@ void inic_parametros_c25519(){
     // Ponto base da curva 'Curve25519' (E) definido por Daniel J. Bernstein Gu = 9 e
     // Gv = 43114425171068552920764898935933967039\370386198203806730763910166200978582548
     // o valor da coordenada y é pouco relevante para os calculos
-    // mpz_init_set_ui(P_0x, 9); //x0 = 9
-    // mpz_init_set_str(P_0y, "14781619447589544791020593568409986887264606134616475288964881837755586237401", 10); // y0 = 14781619447589544791020593568409986887264606134616475288964881837755586237401
+    mpz_init_set_ui(P_0x, 9); //x0 = 9
+    mpz_init_set_str(P_0y, "14781619447589544791020593568409986887264606134616475288964881837755586237401", 10); // y0 = 14781619447589544791020593568409986887264606134616475288964881837755586237401
 
-    mpz_init_set_ui(P_0x, 9);         // x0 = 9
-    mpz_init_set_str(P_0y, "11", 10); // y0 = 11
+    //mpz_init_set_ui(P_0x, 9);         // x0 = 9
+    //mpz_init_set_str(P_0y, "11", 10); // y0 = 11
 
     // Inicializa o ponto base da curva 'Curve25519' (E)
     initPonto(P_0, P_0x, P_0y);
@@ -260,8 +260,8 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
 // 3. Calcula o 'ADD' retornado P3(X3,Y3) somente se Y1 != +/- Y2
 Ponto add_ponto(Ponto P_1, Ponto P_2){
 
-    mpz_t m, var;
-    mpz_inits(m, var, NULL);
+    mpz_t var, var1;
+    mpz_inits(var, var1, NULL);
 
     Ponto P_3;
     initPonto(P_3); // Inicializa o ponto P_3
@@ -298,33 +298,25 @@ Ponto add_ponto(Ponto P_1, Ponto P_2){
         Curve25519: New Diﬃe-Hellman Speed Records
     ___________________________________________________________________________________________________*/
     else{
-        
+        // FÓRMULAS DE DANIEL J. BERNSTEIN
+        // x3 = 4*z0(x1*x2 - z1*z2)² mod p
+        mpz_mul(var, P_1.x, P_2.x); // x1*x2
+        mpz_mul(var1, P_1.y, P_2.y);   // y1*y2
+        mpz_sub(var, var, var1); // x1*x2 - y1*y2
+        mpz_mul(var, var, var); // (x1*x2 - y1*y2)²
+        mpz_mul(var, var, P_0.y); // z0(x1*x2 - y1*y2)²
+        mpz_mul_ui(P_3.x, var, 4); // 4*z0(x1*x2 - y1*y2)²
+        mpz_mod(P_3.x, P_3.x, p); // 4*z0(x1*x2 - y1*y2)² mod p
 
+        // y3 = 4*x0(x1*z2 - z1*x2)² mod p
+        mpz_mul(var, P_1.x, P_2.y); // x1*y2
+        mpz_mul(var1, P_1.y, P_2.x);   // y1*x2
+        mpz_sub(var, var, var1); // x1*y2 - y1*x2
+        mpz_mul(var, var, var); // (x1*y2 - y1*x2)²
+        mpz_mul(var, var, P_0.x); // x0(x1*y2 - y1*x2)²
+        mpz_mul_ui(P_3.y, var, 4); // 4*x0(x1*y2 - y1*x2)²
+        mpz_mod(P_3.y, P_3.y, p); // 4*x0(x1*y2 - y1*x2)² mod p
 
-
-        // FÓRMULAS DE WEIERSTRASS
-        // m = ((y2 - y1) mod p) * ((x2 - x1)^(-1) mod p)) mod p;
-        mpz_sub(var, P_2.y, P_1.y); // Y2 - Y1
-        mpz_mod(var, var, p);       // Y2 - Y1 mod p
-        mpz_sub(m, P_2.x, P_1.x);   // X2 - X1
-        mpz_mod(m, m, p);           // X2 - X1 mod p
-        mpz_invert(m, m, p);        // InvMod((x2 - x1) mod p, p)
-        mpz_mul(m, m, var);         // ((y2 - y1) mod p) * ((x2 - x1)^(-1) mod p))
-        mpz_mod(m, m, p);           // (((y2 - y1) mod p) * ((x2 - x1)^(-1) mod p)) mod p
-
-        // x3 = ((m)^2 mod p - (x1 + x2) mod p) mod p;
-        mpz_powm_ui(P_3.x, m, 2, p); // (m)^2 mod p
-        mpz_add(var, P_1.x, P_2.x);  // X1 + X2
-        mpz_mod(var, var, p);        // X1 + X2 mod p
-        mpz_sub(P_3.x, P_3.x, var);  // ((m)^2 mod p - (x1 + x2) mod p)
-        mpz_mod(P_3.x, P_3.x, p);    // ((m)^2 mod p - (x1 + x2) mod p) mod p;
-
-        // y3 = ((m*(x1 - x3)) mod p - y1) mod p;
-        mpz_sub(var, P_1.x, P_3.x);   // X1 - X3
-        mpz_mul(P_3.y, m, var);       // m*(x1 - x3)
-        mpz_mod(P_3.y, P_3.y, p);     // m*(x1 - x3) mod p
-        mpz_sub(P_3.y, P_3.y, P_1.y); // (m*(x1 - x3) mod p - y1)
-        mpz_mod(P_3.y, P_3.y, p);     // (m*(x1 - x3) mod p - y1) mod p
 
         gmp_printf("\nP3:(%Zd, %Zd)", P_3.x, P_3.y);
 
@@ -356,38 +348,27 @@ Ponto double_ponto(Ponto P){
     }
 
     else{
-        mpz_t var, m;
-        mpz_inits(var, m, NULL);
+        mpz_t var, var1;
+        mpz_inits(var, var1, NULL);
 
-        // Fómulas de Weierstrass
+        // FÓRMULAS DE DANIEL J. BERNSTEIN
+        // x2 = (x^2 - y^2)² mod p
+        mpz_mul(var, P.x, P.x); // x^2
+        mpz_mul(var1, P.y, P.y);   // y^2
+        mpz_sub(var, var, var1); // x^2 - y^2
+        mpz_mul(var, var, var); // (x^2 - y^2)²
+        mpz_mod(P_double.x, var, p); // (x^2 - y^2)² mod p
 
-        // m = ((3*(x1^2) + a) * ((2*y1)^(-1) mod p)) mod p
-        mpz_powm_ui(var, P.x, 2, p); // x1^2
-        mpz_mul_ui(var, var, 3);     // 3*(x1^2)
-        mpz_add(var, var, a);        // 3*(x1^2) + a
-        mpz_mul_ui(m, P.y, 2);       // 2*y1
-        mpz_invert(m, m, p);         // InvMod((2*y1) mod p, p)
-        mpz_mul(m, m, var);          // ((3*(x1^2) + a) * ((2*y1)^(-1) mod p))
-        mpz_mod(m, m, p);            // ((3*(x1^2) + a) * ((2*y1)^(-1) mod p)) mod p
-
-        //gmp_printf("\n\nm: %Zd\n", m);
-
-        // x3 = (m^2 - 2*x1) mod p
-        mpz_pow_ui(P_double.x, m, 2);         // m^2 
-        //gmp_printf("\n\nm²: %Zd\n", P_double.x);
-        mpz_mul_ui(var, P.x, 2);               // 2*x1
-        //gmp_printf("\n\n2*x1: %Zd\n", var);
-        mpz_sub(P_double.x, P_double.x, var); // (m^2 - 2*x1)
-        mpz_mod(P_double.x, P_double.x, p);   // (m^2 - 2*x1) mod p
-
-        //gmp_printf("\n\nx3: %Zd\n", P_double.x);
-
-        // y3 = (m*(x1 - x3) - y1) mod p
-        mpz_sub(var, P.x, P_double.x);        // x1 - x3
-        mpz_mul(P_double.y, m, var);          // m*(x1 - x3)
-        mpz_sub(P_double.y, P_double.y, P.y); // (m*(x1 - x3) - y1)
-        mpz_mod(P_double.y, P_double.y, p);   // (m*(x1 - x3) - y1) mod p
-        
+        // y2 = 4*x*y*(x^2 + a*x*y + y^2) mod p
+        mpz_mul(var, P.x, P.y); // x*y
+        mpz_mul(var1, var, a); // a*x*y
+        mpz_mul(P_double.y, P.x, P.x); // x^2 
+        mpz_add(P_double.y, P_double.y, var1); // x^2 + a*x*y
+        mpz_mul(var1, P.y, P.y); // y^2
+        mpz_add(P_double.y, P_double.y, var1); // x^2 + a*x*y + y^2
+        mpz_mul_ui(var, var, 4); // 4*x*y
+        mpz_mul(P_double.y, P_double.y, var); // 4*x*y*(x^2 + a*x*y + y^2)
+        mpz_mod(P_double.y, P_double.y, p); // 4*x*y*(x^2 + a*x*y + y^2) mod p 
 
         gmp_printf("\n\nx2: %Zd\n", P_double.x);
         gmp_printf("\n\ny2: %Zd\n", P_double.y);
