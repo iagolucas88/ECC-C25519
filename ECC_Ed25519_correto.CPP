@@ -13,40 +13,45 @@ ____________________________________________________________________________*/
 
 using namespace std;
 
-struct Ponto{
+struct Ponto
+{
     mpz_t x, y;
 };
 
 // Função para inicializar um ponto com valores mpz_t
-void initPonto(Ponto &P, const mpz_t x_val, const mpz_t y_val){
+void initPonto(Ponto &P, const mpz_t x_val, const mpz_t y_val)
+{
     mpz_init_set(P.x, x_val);
     mpz_init_set(P.y, y_val);
 }
 
 // Função para inicializar um ponto sem valores específicos
-void initPonto(Ponto &P){
+void initPonto(Ponto &P)
+{
     mpz_init(P.x);
     mpz_init(P.y);
 }
 
 // Função para limpar um ponto, liberando recursos
-void clearPonto(Ponto &P){
+void clearPonto(Ponto &P)
+{
     mpz_clear(P.x);
     mpz_clear(P.y);
 }
 
 //*******DECLARA GLOBALMENTE PARAMETROS CURVA ELIPTICA [E: y² = x² + a*x + b (mod p)]*********************
 // E: curva eliptica no campo GF(q) onde |E| = h*n
-// p: numero primo do campo | n: ordem da curva (numero primo enorme)| h: co-fator (numero pequeno)
+// p: numero primo do campo | n: ordem da curva (numero primo enorme)| h: co-fator (numero pequeno, ex.: 1, 2, 4 ou 8)
 // a, b: Curva de Weierstrass (Wa,b) onde 'a' e 'b' são elementos de GF(q) com 4a³ + 27b² != 0
 // P0: ponto base (x0, y0) da curva (qualquer ponto da curva pode ser gerado pelo grupo ciclico <P> ={kP | k = 0,1,2,...} de E)
 mpz_t p, n, a, a24, zero, one;
 mpz_t P_0x, P_0y;
-// mpz_t h, b; //'h' e 'b' nao serao ultilizados, economizando memoria
+// mpz_t h, b; //'h = 8' e 'b = 1' nao serao ultilizados, economizando memoria
 Ponto P_0;
 
 // 0. Inicializa os parametros da curva eliptica 'Curve25519' (E)
-void inic_parametros_c25519(){
+void inic_parametros_c25519()
+{
     /*_______________________________________________________________________
         Inicializa os parametros para C25519 de 128-bit de segurança
     _________________________________________________________________________
@@ -83,12 +88,14 @@ void inic_parametros_c25519(){
 }
 
 // 1. Converte qualquer caracter para inteiro GMP (tabela ASCII)
-void string_to_mpz(const string &mensagem, mpz_t msg_convertida){
+void string_to_mpz(const string &mensagem, mpz_t msg_convertida)
+{
     mpz_t int_caractere;
     mpz_init(int_caractere);
     mpz_init_set_ui(msg_convertida, 0);
 
-    for(size_t i = 0; i < mensagem.length(); ++i){
+    for(size_t i = 0; i < mensagem.length(); ++i)
+    {
         unsigned char c = mensagem[i];
         mpz_ui_pow_ui(int_caractere, 256, i);        // 256^i
         mpz_mul_ui(int_caractere, int_caractere, c); // (256^i) * valor ASCII do caractere
@@ -98,7 +105,8 @@ void string_to_mpz(const string &mensagem, mpz_t msg_convertida){
 
 //*************************************************************************************************** */
 // Função para calcular o símbolo de Legendre
-int legendre_symbol(const mpz_t a, const mpz_t p){
+int legendre_simbolo(const mpz_t a, const mpz_t p)
+{
     mpz_t result;
     mpz_init_set(result, p);
 
@@ -113,10 +121,9 @@ int legendre_symbol(const mpz_t a, const mpz_t p){
 
 // Função para calcular a raiz quadrada modular usando o algoritmo de Tonelli-Shanks
 void raiz_quadrada_modular(mpz_t result, mpz_t a, mpz_t p){
-    if (legendre_symbol(a, p) != 1)
+    if (legendre_simbolo(a, p) != 1)
     {
-        // return false; //
-        cout << "Não há raiz quadrada" << endl;
+        cout << "Não há raiz quadrada!" << endl;
     }
 
     mpz_t q, s, z, m, c, t, r, b, temp;
@@ -131,7 +138,7 @@ void raiz_quadrada_modular(mpz_t result, mpz_t a, mpz_t p){
     }
 
     mpz_set_ui(z, 2);
-    while (legendre_symbol(z, p) != -1)
+    while (legendre_simbolo(z, p) != -1)
     {
         mpz_add_ui(z, z, 1);
     }
@@ -446,7 +453,8 @@ void gera_int_rand(mpz_t k){
     // Gera a semente sem bloqueio, diferente do /dev/random que pode bloquear se nao houver entropia suficiente
     // urandom eh seguro o suficiente, mas para criptografia eh garantido ultilizar random (porém pode haver bloqueio e demorar)
     ifstream urandom("/dev/urandom", ios::binary);
-    if(!urandom){
+    if(!urandom)
+    {
         cout << "Erro ao abrir /dev/urandom" << endl;
         return;
     }
@@ -493,11 +501,9 @@ void gera_int_rand(mpz_t k){
     // Zera a chave privada
     mpz_init_set_ui(k, 0);
 
-    // Gera uma chave privada baseada no STATE com SEED e no intervalo [1, n-1]
-    do
-    {
-        mpz_urandomm(k, state, n);
-    } while (mpz_cmp_ui(k, 1) <= 0); // Enquanto k <= 1
+    // Gera uma escalar inteiro impar baseada no STATE com SEED no intervalo [1, n-1]
+    do{mpz_urandomm(k, state, n);
+    } while(mpz_cmp_ui(k, 1) <= 0 || mpz_even_p(k) != 0); // Enquanto k <= 1 ou k é par
 
     mpz_set_ui(k, 11); // k = 11
 
