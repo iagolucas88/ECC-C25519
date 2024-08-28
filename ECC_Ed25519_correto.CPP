@@ -94,7 +94,7 @@ void string_to_mpz(const string &mensagem, mpz_t msg_convertida)
     mpz_init(int_caractere);
     mpz_init_set_ui(msg_convertida, 0);
 
-    for(size_t i = 0; i < mensagem.length(); ++i)
+    for (size_t i = 0; i < mensagem.length(); ++i)
     {
         unsigned char c = mensagem[i];
         mpz_ui_pow_ui(int_caractere, 256, i);        // 256^i
@@ -131,6 +131,7 @@ void raiz_quadrada_modular(mpz_t result, mpz_t a, mpz_t p){
 
     mpz_sub_ui(q, p, 1);
     mpz_set_ui(s, 0);
+
     while (mpz_even_p(q))
     {
         mpz_fdiv_q_2exp(q, q, 1);
@@ -138,6 +139,7 @@ void raiz_quadrada_modular(mpz_t result, mpz_t a, mpz_t p){
     }
 
     mpz_set_ui(z, 2);
+
     while (legendre_simbolo(z, p) != -1)
     {
         mpz_add_ui(z, z, 1);
@@ -612,6 +614,54 @@ void descodifica_ponto_para_string(mpz_t msg_x){
     cout << endl;
 
     mpz_clears(var, var_1, var_2, NULL);
+}
+
+void validacao_ponto(Ponto Q){
+    // Ultiliza no Teste 3: equacao da curva By² = x³ + Ax² + x
+    mpz_t le, ld, var;
+    mpz_init(le, ld, var, NULL);
+
+    // Lado esquerdo da equacao (B = 1)
+    mpz_powm(le, Q.y, Q.y, p); // y² mod p
+
+    // Lado direito da equacao
+    mpz_mul(ld, Q.x, Q.x); // x²
+    mpz_mul(var, a, ld);   // ax²
+    mpz_mul(ld, ld, Q.x);  // x³
+    mpz_add(ld, ld, var);  // x³ + ax²
+    mpz_add(ld, ld, Q.x);  // x³ + ax² + x
+    mpz_mod(ld, ld, p);    // x³ + ax² + x mod p
+
+    // Teste 1: Q eh um ponto no infinito
+    if (Q.x == 0 && Q.y == 0)
+    {
+        cout << "REJEITADO (Q eh ponto no infinito)" << endl;
+        break;
+    }
+
+    // Teste 2: 0 <= (x, y) ou (u, v) <= (p - 1)
+    else if (Q.x >= 0 && Q.x < p && Q.y >= 0 && Q.y < p)
+    {
+        cout << "REJEITADO (u e v fora do intervalo [0, p-1])" << endl;
+        break;
+    }
+
+    // Teste 3: By² = x³ + Ax² + x
+    else if (mpz_cmp(le, ld) != 0)
+    {
+        cout << "REJEITADO (u e v nao satisfaz a equacao)" << endl;
+        break;
+    }
+    /*Para o teste completo, fazer apenas para chave pública e evitar loops
+    // Teste 4: nQ eh um ponto no infinito
+    else if
+    {
+
+    }*/
+
+    else
+        cout << "ACEITO" << endl;
+
 }
 
 int main(){
