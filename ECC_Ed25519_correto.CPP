@@ -390,60 +390,67 @@ Ponto double_ponto(Ponto P){
 Ponto multiplicacao_escalar(mpz_t k_rand, Ponto Ponto_curva){
     cout << "\n\n__________________________Mult Escalar______________________________\n" << endl; // REMOVER
 
-    Ponto Ponto_R, Ponto_B;
-    initPonto(Ponto_R);                               // Inicializa o ponto Ponto_resultante
-    initPonto(Ponto_B, Ponto_curva.x, Ponto_curva.y); // Inicializa o ponto Ponto_curva
+    Ponto R0, R1;
+    initPonto(R0, zero, zero);                   // Inicializa o ponto Ponto resultante no infinito (zero)
+    initPonto(R1, Ponto_curva.x, Ponto_curva.y); // Inicializa o ponto Ponto_curva
 
-    gmp_printf("\nPonto Curva: (%Zd, %Zd)", Ponto_B.x, Ponto_B.y);
+    gmp_printf("\nPonto Curva: (%Zd, %Zd)", R1.x, R1.y);
+    validacao_ponto(R1);
 
-    //Para não alterar o valor original de k_rand
+    // Para não alterar o valor original de k_rand
     mpz_t k_var;
     mpz_init_set(k_var, k_rand);
 
     // Verifica se k é 0
-    if(mpz_cmp_ui(k_var, 0) == 0){
-        gmp_printf("\nk = 0\nx: % Zd", Ponto_B.x); // Apenas x eh necessario para a chave publica
+    if (mpz_cmp_ui(k_var, 0) == 0)
+    {
+        gmp_printf("\nk = 0\nx: % Zd", R1.x); // Apenas x eh necessario para a chave publica
 
-        clearPonto(Ponto_R); // Limpa o ponto Ponto_R
+        clearPonto(R0); // Limpa o ponto R0
 
-        return Ponto_B; // Retorna o Ponto Curva se k é 0
+        return R1; // Retorna o Ponto Curva se k é 0
     }
 
     else{
-        bool R_inic = false;
-        mpz_t k_bit;
-        mpz_init(k_bit);
+        mpz_t k_bit, tam;
+        mpz_inits(k_bit, tam, NULL);
 
-        while(mpz_cmp(k_var, zero) > 0){
-            mpz_and(k_bit, k_var, one); // k_bit = k & 1 (bit menos significativo)
-            gmp_printf("\n\nk_bit: %Zd", k_bit);
-            if (mpz_cmp(k_bit, zero) > 0)
+        mpz_set_ui(k_bit, mpz_sizeinbase(k_var, 2)); // Número de bits de k
+
+        for (mpz_sub(tam, k_bit, one); mpz_cmp(tam, zero) >= 0; mpz_sub(tam, tam, one))
+        {
+            gmp_printf("\n\ntam: %Zd", tam);
+            gmp_printf("\nk_bit: %Zd", k_bit);
+
+            if (mpz_tstbit(k_var, mpz_get_ui(tam) == 0))
             {
-                if (!R_inic){
-                    R_inic = true;
-                    cout << "\nR_inic true, ponto R é o B\n"; // REMOVER
-                    mpz_set(Ponto_R.x, Ponto_B.x);
-                    mpz_set(Ponto_R.y, Ponto_B.y);
-                }
-                else{
-                    Ponto_R = add_ponto(Ponto_R, Ponto_B);
-                    gmp_printf("\n\nADD\nx: %Zd \ny: %Zd", Ponto_R.x, Ponto_R.y);
-                }
+                R1 = add_ponto(R0, R1); // R1 = R0 + R1
+                gmp_printf("\n\nADD\nx: %Zd \ny: %Zd", R1.x, R1.y);
+                validacao_ponto(R1);
+
+                R0 = double_ponto(R0); // R0 = 2*R0
+                gmp_printf("\n\nDOUBLE\nx: %Zd \ny: %Zd", R0.x, R0.y);
+                validacao_ponto(R1);
+            } 
+            
+            else 
+            {
+                R0 = add_ponto(R0, R1); // R0 = R0 + R1
+                gmp_printf("\n\nADD\nx: %Zd \ny: %Zd", R0.x, R0.y);
+                validacao_ponto(R1);
+
+                R1 = double_ponto(R1); // R1 = 2*R1
+                gmp_printf("\n\nDOUBLE\nx: %Zd \ny: %Zd", R1.x, R1.y);
+                validacao_ponto(R1);
             }
-            cout << "\n\nDOUBLE\n"; // REMOVER
-            Ponto_B = double_ponto(Ponto_B);
-            gmp_printf("\nx: %Zd \ny: %Zd", Ponto_B.x, Ponto_B.y);
-            mpz_fdiv_q_2exp(k_var, k_var, 1); // k = k >> 1 (shift right)
-            gmp_printf("\n\nk: %Zd", k_var);
         }
 
-        //gmp_printf("\nMultiplicacao Escalar\nx: %Zd \ny: %Zd", Ponto_R.x, Ponto_R.y);
+        clearPonto(R1); // Limpa o ponto R1
+        mpz_clears(k_bit, tam, NULL); // Limpa as variáveis temporárias
 
-        cout << "\n________________________FIM Mult Escalar____________________________\n" << endl; // REMOVER
+        cout << "\n\n________________________FIM Mult Escalar____________________________\n" << endl;
 
-        clearPonto(Ponto_B); // Limpa o ponto Ponto_B
-
-        return Ponto_R; // Retorna o resultado da multiplicação escalar
+        return R0; // Retorna o resultado da multiplicação escalar
     }
 }
 
@@ -652,6 +659,7 @@ void validacao_ponto(Ponto Q){
         cout << "REJEITADO (u e v nao satisfaz a equacao)" << endl;
         break;
     }
+
     /*Para o teste completo, fazer apenas para chave pública e evitar loops
     // Teste 4: nQ eh um ponto no infinito
     else if
