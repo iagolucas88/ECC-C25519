@@ -75,6 +75,10 @@ void inic_parametros_c25519()
     // o valor da coordenada y é pouco relevante para os calculos
     mpz_init_set_ui(P_0x, 9); //x0 = 9
     mpz_init_set_str(P_0y, "14781619447589544791020593568409986887264606134616475288964881837755586237401", 10); // y0 = 14781619447589544791020593568409986887264606134616475288964881837755586237401
+    // y0 considerando x0 = 9 (correto pela raiz quadrada modular)
+
+    // Inicializa o ponto base da curva 'Curve25519' (E)
+    initPonto(P_0, P_0x, P_0y);
 
     //mpz_init_set_ui(P_0x, 9);         // x0 = 9
     //mpz_init_set_str(P_0y, "11", 10); // y0 = 11
@@ -191,6 +195,7 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
 
     // Necessario copiar para nao alterar o valor da mensagem original e evitar conflitos
     mpz_set(x_msg, msg);
+    
 
     // Multiplica por 100 para garantir no Teste de Euler as adições sejam descartadas
     mpz_mul_ui(x_msg, x_msg, 100); // x_msg = msg * 100
@@ -204,7 +209,7 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
     // Expoente para o Teste de Euler: exp_euler = (p-1)/2
     mpz_sub_ui(exp_euler, p, 1);
     mpz_cdiv_q_ui(exp_euler, exp_euler, 2);
-    gmp_printf("\nexp_euler: %Zd", exp_euler);
+    gmp_printf("\nExpoente do Teste de Euler: %Zd", exp_euler);
 
     while(true){
         // y² = x³ + a*x² + x  mod p
@@ -215,7 +220,7 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
         mpz_add(y_msg_squared, y_msg_squared, var); // x³ + a*x² + x
         mpz_mod(y_msg_squared, y_msg_squared, p);   // y² = x³ + a*x² + x  mod p
 
-        gmp_printf("\n\ny_msg_squared: %Zd", y_msg_squared);
+        gmp_printf("\n\ny²: %Zd", y_msg_squared);
 
         // Teste de Euler: verifica se y² é um resíduo quadrático
         mpz_powm(y_msg, y_msg_squared, exp_euler, p); // y^2*[(p-1)/2]  mod p
@@ -229,7 +234,7 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
             // mpz_set(exp_euler, p);
             // mpz_add_ui(exp_euler, exp_euler, 1);
             // mpz_cdiv_q_ui(exp_euler, exp_euler, 4);
-            gmp_printf("\nexp_euler: %Zd", exp_euler);
+            //gmp_printf("\nexp_euler: %Zd", exp_euler);
 
             // if(raiz_quadrada_modular(y_msg, y_msg_squared, p)){
             //     gmp_printf("\nRaiz quadrada modular de %Zd\n mod %Zd\n é %Zd\n", y_msg_squared, p, y_msg);
@@ -237,7 +242,7 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
             //     cout << "Não há raiz quadrada modular para o valor fornecido." << endl;
             //}
             raiz_quadrada_modular(y_msg, y_msg_squared, p);
-            gmp_printf("\n\nRaiz quadrada modular de %Zd\n mod %Zd\n é %Zd\n", y_msg_squared, p, y_msg);
+            //gmp_printf("\n\nRaiz quadrada modular de %Zd\n mod %Zd\n é %Zd\n", y_msg_squared, p, y_msg);
 
             // gmp_printf("Raiz quadrada modular de %Zd mod %Zd é %Zd\n", a, p, result);
 
@@ -257,13 +262,55 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
     mpz_set(P_msg.x, x_msg);
     mpz_set(P_msg.y, y_msg);
 
-    gmp_printf("\n\ny_msg FINAL: %Zd\n", y_msg);
+    //gmp_printf("\n\ny_msg FINAL: %Zd\n", y_msg);
     // cout << "\n\n____________________________FIM MSG PARA PONTO____________________________\n" << endl;
 
     // Limpa variáveis temporárias
     mpz_clears(x_msg, y_msg, y_msg_squared, var, exp_euler, NULL);
 
     return P_msg;
+}
+
+void validacao_ponto(Ponto Q){
+    // Ultiliza no Teste 3: equacao da curva By² = x³ + Ax² + x
+    mpz_t le, ld, var;
+    mpz_inits(le, ld, var, NULL);
+
+    // Lado esquerdo da equacao (B = 1)
+    mpz_powm_ui(le, Q.y, 2, p); // y² mod p
+    gmp_printf("\n\ny²:           %Zd", le);
+
+    // Lado direito da equacao
+    mpz_powm_ui(ld, Q.x, 2, p); // x² mod p
+    mpz_mul(var, a, ld);   // ax²
+    mpz_powm_ui(ld, Q.x, 3, p); // x³ mod p
+    mpz_add(ld, ld, var);  // x³ + ax²
+    mpz_add(ld, ld, Q.x);  // x³ + ax² + x
+    mpz_mod(ld, ld, p);    // x³ + ax² + x mod p
+    gmp_printf("\nx³ + ax² + x: %Zd", ld);
+
+    // Teste 1: Q eh um ponto no infinito
+    if (Q.x == 0 && Q.y == 0)
+        cout << "\nREJEITADO (Q eh ponto no infinito)" << endl;
+
+    // Teste 2: 0 <= (x, y) ou (u, v) <= (p - 1)
+    else if (Q.x >= zero && Q.x < p && Q.y >= zero && Q.y < p)
+        cout << "\nREJEITADO (u e v fora do intervalo [0, p-1])" << endl;
+
+    // Teste 3: By² = x³ + Ax² + x
+    else if (mpz_cmp(le, ld) != 0)
+        cout << "\nREJEITADO (u e v nao satisfaz a equacao)" << endl;
+
+    /*Para o teste completo, fazer apenas para chave pública e evitar loops
+    // Teste 4: nQ eh um ponto no infinito
+    else if
+    {
+
+    }*/
+
+    else
+        cout << "\nACEITO" << endl;
+
 }
 
 // 3. Calcula o 'ADD' retornado P3(X3,Y3) somente se Y1 != +/- Y2
@@ -276,24 +323,17 @@ Ponto add_ponto(Ponto P_1, Ponto P_2){
     initPonto(P_3); // Inicializa o ponto P_3
 
     // A coordenada Y1 != +/- Y2
-    if(mpz_cmpabs(P_1.y, P_2.y) == 0){
+    if(mpz_cmpabs(P_1.y, P_2.y) == 0)
+    {
         cout << "\nErro Ponto-ADD (Y1 = +/- Y2)!" << endl;
         mpz_set_ui(P_3.x, 0);
         mpz_set_ui(P_3.y, 0);
         return P_3;
     }
-
-    // Se P_2(0, 0), retorne P_1
-    else if((mpz_cmp_ui(P_2.x, 0) == 0 && mpz_cmp_ui(P_2.y, 0) == 0)){
-        mpz_set(P_3.x, P_1.x);
-        mpz_set(P_3.y, P_1.y);
-
-        gmp_printf("\n\nP2(0, 0), logo\nP3:(%Zd, %Zd)", P_3.x, P_3.y);
-        return P_3;
-    }
-
+    
     // Se P_1(0, 0), retorne P_2
-    else if((mpz_cmp_ui(P_1.x, 0) == 0 && mpz_cmp_ui(P_1.y, 0) == 0)){
+    else if((mpz_cmp_ui(P_1.x, 0) == 0 && mpz_cmp_ui(P_1.y, 0) == 0))
+    {
 
         mpz_set(P_3.x, P_2.x);
         mpz_set(P_3.y, P_2.y);
@@ -302,12 +342,23 @@ Ponto add_ponto(Ponto P_1, Ponto P_2){
         return P_3;
     }
 
+    // Se P_2(0, 0), retorne P_1
+    else if((mpz_cmp_ui(P_2.x, 0) == 0 && mpz_cmp_ui(P_2.y, 0) == 0))
+    {
+        mpz_set(P_3.x, P_1.x);
+        mpz_set(P_3.y, P_1.y);
+
+        gmp_printf("\n\nP2(0, 0), logo\nP3:(%Zd, %Zd)", P_3.x, P_3.y);
+        return P_3;
+    }
+
+
     /*_________________________________________________________________________________________________
         FORMULAS RETIRADAS DO TEOREMA B2 DO APENDIX B (pag. 228)
         Curve25519: New Diﬃe-Hellman Speed Records
     ___________________________________________________________________________________________________*/
     else{
-        // FÓRMULAS DE DANIEL J. BERNSTEIN
+        // FÓRMULAS TEOREMA B2 DE DANIEL J. BERNSTEIN (MONTEGOMERY LADDER)
         // x3 = 4*z0(x1*x2 - z1*z2)² mod p
         mpz_mul(var, P_1.x, P_2.x); // x1*x2
         mpz_mul(var1, P_1.y, P_2.y);   // y1*y2
@@ -327,7 +378,7 @@ Ponto add_ponto(Ponto P_1, Ponto P_2){
         mpz_mod(P_3.y, P_3.y, p); // 4*x0(x1*y2 - y1*x2)² mod p
 
 
-        gmp_printf("\nP3:(%Zd, %Zd)", P_3.x, P_3.y);
+        //gmp_printf("\nP3:(%Zd, %Zd)", P_3.x, P_3.y);
 
         return P_3;
     }
@@ -368,6 +419,8 @@ Ponto double_ponto(Ponto P){
         mpz_mul(var, var, var); // (x^2 - y^2)²
         mpz_mod(P_double.x, var, p); // (x^2 - y^2)² mod p
 
+
+    //COORDENADAS PROJETIVAS Z2. X(2Q) = x2/z2 e Q = (x/z, y)
         // y2 = 4*x*y*(x^2 + a*x*y + y^2) mod p
         mpz_mul(var, P.x, P.y); // x*y
         mpz_mul(var1, var, a); // a*x*y
@@ -379,8 +432,7 @@ Ponto double_ponto(Ponto P){
         mpz_mul(P_double.y, P_double.y, var); // 4*x*y*(x^2 + a*x*y + y^2)
         mpz_mod(P_double.y, P_double.y, p); // 4*x*y*(x^2 + a*x*y + y^2) mod p 
 
-        gmp_printf("\n\nx2: %Zd\n", P_double.x);
-        gmp_printf("\n\ny2: %Zd\n", P_double.y);
+        //gmp_printf("\nPonto dobrado:\nx2: %Zd\ny2: %Zd\n", P_double.x, P_double.y);
 
         return P_double;
     }
@@ -419,28 +471,31 @@ Ponto multiplicacao_escalar(mpz_t k_rand, Ponto Ponto_curva){
 
         for (mpz_sub(tam, k_bit, one); mpz_cmp(tam, zero) >= 0; mpz_sub(tam, tam, one))
         {
-            gmp_printf("\n\ntam: %Zd", tam);
+            int bit = mpz_tstbit(k_var, mpz_get_ui(tam)-1);
+            
+            gmp_printf("\ntam: %Zd", tam);
             gmp_printf("\nk_bit: %Zd", k_bit);
+            cout << "\nBIT: " << bit << endl;
 
-            if (mpz_tstbit(k_var, mpz_get_ui(tam) == 0))
+            if (bit == 0)
             {
                 R1 = add_ponto(R0, R1); // R1 = R0 + R1
-                gmp_printf("\n\nADD\nx: %Zd \ny: %Zd", R1.x, R1.y);
+                gmp_printf("\n\nResultado R1 ADD++++++++++\nx: %Zd \ny: %Zd", R1.x, R1.y);
                 validacao_ponto(R1);
 
                 R0 = double_ponto(R0); // R0 = 2*R0
-                gmp_printf("\n\nDOUBLE\nx: %Zd \ny: %Zd", R0.x, R0.y);
-                validacao_ponto(R1);
+                gmp_printf("\n\nResultado R0 DOUBLE**********\nx: %Zd \ny: %Zd", R0.x, R0.y);
+                validacao_ponto(R0);
             } 
             
             else 
             {
                 R0 = add_ponto(R0, R1); // R0 = R0 + R1
-                gmp_printf("\n\nADD\nx: %Zd \ny: %Zd", R0.x, R0.y);
-                validacao_ponto(R1);
+                gmp_printf("\n\nResultado R0 ADD++++++++++\nx: %Zd \ny: %Zd", R0.x, R0.y);
+                validacao_ponto(R0);
 
                 R1 = double_ponto(R1); // R1 = 2*R1
-                gmp_printf("\n\nDOUBLE\nx: %Zd \ny: %Zd", R1.x, R1.y);
+                gmp_printf("\n\nResultado R1 DOUBLE**********\nx: %Zd \ny: %Zd", R1.x, R1.y);
                 validacao_ponto(R1);
             }
         }
@@ -455,7 +510,8 @@ Ponto multiplicacao_escalar(mpz_t k_rand, Ponto Ponto_curva){
 }
 
 // 6. Gerar um numero inteiro randomico no intervalo [1, n-1] e retorna uma CHAVE PRIVADA (k)
-void gera_int_rand(mpz_t k){
+void gera_int_rand(mpz_t k)
+{
 
     // ________________________INICIO GERAR SEMENTE________________________
 
@@ -559,7 +615,7 @@ void encriptar_mensagem(Ponto msg_cod, Ponto chave_pbl, Ponto &C1, Ponto &C2){
     initPonto(C2);
     initPonto(ponto_mult_chv_pbl);
 
-    gmp_printf("\nC1 - k: %Zd", chv_prv_efemera);
+    gmp_printf("\nC1 (k): %Zd", chv_prv_efemera);
 
     C1 = multiplicacao_escalar(chv_prv_efemera, P_0);                   // C1 = k*P_0
 
@@ -623,55 +679,6 @@ void descodifica_ponto_para_string(mpz_t msg_x){
     mpz_clears(var, var_1, var_2, NULL);
 }
 
-void validacao_ponto(Ponto Q){
-    // Ultiliza no Teste 3: equacao da curva By² = x³ + Ax² + x
-    mpz_t le, ld, var;
-    mpz_init(le, ld, var, NULL);
-
-    // Lado esquerdo da equacao (B = 1)
-    mpz_powm(le, Q.y, Q.y, p); // y² mod p
-
-    // Lado direito da equacao
-    mpz_mul(ld, Q.x, Q.x); // x²
-    mpz_mul(var, a, ld);   // ax²
-    mpz_mul(ld, ld, Q.x);  // x³
-    mpz_add(ld, ld, var);  // x³ + ax²
-    mpz_add(ld, ld, Q.x);  // x³ + ax² + x
-    mpz_mod(ld, ld, p);    // x³ + ax² + x mod p
-
-    // Teste 1: Q eh um ponto no infinito
-    if (Q.x == 0 && Q.y == 0)
-    {
-        cout << "REJEITADO (Q eh ponto no infinito)" << endl;
-        break;
-    }
-
-    // Teste 2: 0 <= (x, y) ou (u, v) <= (p - 1)
-    else if (Q.x >= 0 && Q.x < p && Q.y >= 0 && Q.y < p)
-    {
-        cout << "REJEITADO (u e v fora do intervalo [0, p-1])" << endl;
-        break;
-    }
-
-    // Teste 3: By² = x³ + Ax² + x
-    else if (mpz_cmp(le, ld) != 0)
-    {
-        cout << "REJEITADO (u e v nao satisfaz a equacao)" << endl;
-        break;
-    }
-
-    /*Para o teste completo, fazer apenas para chave pública e evitar loops
-    // Teste 4: nQ eh um ponto no infinito
-    else if
-    {
-
-    }*/
-
-    else
-        cout << "ACEITO" << endl;
-
-}
-
 int main(){
     //!!!!!!!!!!!!!!!!!!!!!!!!!TESTAR CUSTO COMPUTACIONAL VS PRECISÃO!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -705,13 +712,12 @@ int main(){
 
     // Codifica a mensagem (inteiro) inserida para um ponto na curva eliptica C25519
     Ponto msg_cod = codifica_mensagem_para_ponto_da_c25519(msg_t_gmp);
-    gmp_printf("\nMensagem Codificada\nx: % Zd", msg_cod.x);
-    gmp_printf("\ny: % Zd", msg_cod.y);
+    gmp_printf("\n\nMensagem Codificada\nx: % Zd\ny: % Zd", msg_cod.x, msg_cod.y);
 
     // Gera a Chave Privada (k) limitada pela ordem da curva eliptica (n), retornando inteiro
     gera_int_rand(k);
     mpz_set(chv_prv, k);
-    gmp_printf("\nChave Privada: % Zd ", chv_prv);
+    gmp_printf("\n\nChave Privada: % Zd ", chv_prv);
 
     // Gera a Chave Publica fornecendo a Chave Privada
     // pela multiplicacao escalar ultilizando o ponto inicial (x1, y1)
@@ -733,33 +739,16 @@ int main(){
 
     // Decripta a mensagem ultilizando a Chave Privada
     msg_dec = decriptar_mensagem(C1, C2, chv_prv);
-    gmp_printf("\n\nMensagem descriptografada: x: %Zd", msg_dec.x);
-    gmp_printf("\ny: %Zd", msg_dec.y);
+    gmp_printf("\n\nMensagem descriptografada: \nx: %Zd\ny: %Zd", msg_dec.x, msg_dec.y);
 
     // Decodifica a mensagem para string original
     descodifica_ponto_para_string(msg_dec.x);
-
-    mpz_t p, P0x, P0y;
-    mpz_inits(p, P0x, P0y, NULL);   
-    Ponto P0;
-
-    mpz_init_set_ui(P0x, 9); //x0 = 9
-    mpz_init_set_str(P0y, "14781619447589544791020593568409986887264606134616475288964881837755586237401", 10); // y0 = 14781619447589544791020593568409986887264606134616475288964881837755586237401
-
-    initPonto(P0, P0x, P0y);
-
-    gmp_printf("\n\nP0 INICIAL:\n x = %Zd | y = %Zd", P0.x, P0.y);
-
-    P0 = double_ponto(P0);
-
-    gmp_printf("\n\nP0 DOUBLE:\n x = %Zd | y = %Zd", P0.x, P0.y);
-
 
     // Limpa variáveis para liberar memória
     // mpz_clears(h, b, NULL);
     mpz_clears(p, a, n, P_0x, P_0y, msg_t_gmp, chv_prv, NULL);
     cout << endl
          << endl;
-
+\
     return 0;
 }
