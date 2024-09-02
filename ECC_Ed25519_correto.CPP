@@ -313,7 +313,7 @@ void validacao_ponto(Ponto Q){
 
 }
 
-// 3. Calcula o 'ADD' retornado P3(X3,Y3) somente se Y1 != +/- Y2
+// 3. Calcula o 'ADD' retornado a coordenada projetiva X(Q + Q') = x3/z3, somente se Y1 != +/- Y2 
 Ponto add_ponto(Ponto P_1, Ponto P_2){
 
     mpz_t var, var1;
@@ -358,13 +358,44 @@ Ponto add_ponto(Ponto P_1, Ponto P_2){
         Curve25519: New Diﬃe-Hellman Speed Records
     ___________________________________________________________________________________________________*/
     else{
-        // FÓRMULAS TEOREMA B2 DE DANIEL J. BERNSTEIN (MONTEGOMERY LADDER)
+        /* FÓRMULAS TEOREMA B2 DE DANIEL J. BERNSTEIN (MONTEGOMERY LADDER)
+        Coordenadas: Afins (x, y) --> (X:Y:1) Projetiva
+                Projetiva (X:Y:Z) --> (x/z, y/z, 1) Afins
+
+        Apenas faz-se necessário ultilizar a coordenada x, assim:
+            X(Q + Q') = x3/z3 para todo Q e Q' pertencentes ao campo E(Fp²), onde
+            X(Q) = x/z, X(Q') = x'/z' e X(Q - Q') = x1/z1
+        Considerando x1 = 9 e z1 = 1 (pode ser qualquer numero diferente de zero, o valor 1 simplifica os cálculos)
+        */
+
+       
+
+        // x3 = 4*z1(x*x' - z*z')² mod p
+        mpz_mul(var, P_1.x, P_2.x); // x*x'
+        mpz_mul(var1, );   // z*z'
+        mpz_sub(var, var, var1); // x*x' - z*z'
+        mpz_mul(var, var, var); // (x*x' - z*z')²
+        mpz_mul(var, var,); // z1(x*x' - z*z')²  
+        mpz_mul_ui(P_3.x, var, 4); // 4*z1(x*x' - z*z')²
+        mpz_mod(P_3.x, P_3.x, p); // 4*z1(x*x' - z*z')² mod p
+
+        // z3 = 4*x1(x*z' - z*x')² mod p
+        mpz_mul(var, P_1.x, ); // x*z'
+        mpz_mul(var1, , P_2.x);   // z*x'
+        mpz_sub(var, var, var1); // x*z' - z*x'
+        mpz_mul(var, var, var); // (x*z' - z*x')²
+        mpz_mul(var, var, P_0.x); // x1(x*z' - z*x')²
+        mpz_mul_ui(, var, 4); // 4*x1(x*z' - z*x')²
+        mpz_mod(, p); // 4*x1(x*z' - z*x')² mod p
+        
+        
+        /*
         // x3 = 4*z0(x1*x2 - z1*z2)² mod p
         mpz_mul(var, P_1.x, P_2.x); // x1*x2
         mpz_mul(var1, P_1.y, P_2.y);   // y1*y2
         mpz_sub(var, var, var1); // x1*x2 - y1*y2
         mpz_mul(var, var, var); // (x1*x2 - y1*y2)²
-        mpz_mul(var, var, P_0.y); // z0(x1*x2 - y1*y2)²
+        mpz_mul(var, var, P_0.y); // z0(x1*x2 - y1*y2)²  ERRADO: O z0 NAO EH P0_Y POIS EH COORD. PROJETIVA
         mpz_mul_ui(P_3.x, var, 4); // 4*z0(x1*x2 - y1*y2)²
         mpz_mod(P_3.x, P_3.x, p); // 4*z0(x1*x2 - y1*y2)² mod p
 
@@ -376,7 +407,7 @@ Ponto add_ponto(Ponto P_1, Ponto P_2){
         mpz_mul(var, var, P_0.x); // x0(x1*y2 - y1*x2)²
         mpz_mul_ui(P_3.y, var, 4); // 4*x0(x1*y2 - y1*x2)²
         mpz_mod(P_3.y, P_3.y, p); // 4*x0(x1*y2 - y1*x2)² mod p
-
+        */
 
         //gmp_printf("\nP3:(%Zd, %Zd)", P_3.x, P_3.y);
 
@@ -442,16 +473,21 @@ Ponto double_ponto(Ponto P){
 Ponto multiplicacao_escalar(mpz_t k_rand, Ponto Ponto_curva){
     cout << "\n\n__________________________Mult Escalar______________________________\n" << endl; // REMOVER
 
-    Ponto R0, R1;
-    initPonto(R0, zero, zero);                   // Inicializa o ponto Ponto resultante no infinito (zero)
-    initPonto(R1, Ponto_curva.x, Ponto_curva.y); // Inicializa o ponto Ponto_curva
-
-    gmp_printf("\nPonto Curva: (%Zd, %Zd)", R1.x, R1.y);
-    validacao_ponto(R1);
-
     // Para não alterar o valor original de k_rand
     mpz_t k_var;
     mpz_init_set(k_var, k_rand);
+
+    // Deve-se iniciar R0 = P e R1 = 2P
+    // R0: Ponto resultante no infinito (zero)
+    // R1: Ponto "doubler" (Ponto_curva dobrado)
+    Ponto R0, R1;
+    initPonto(R0, Ponto_curva.x, one);  // R0 = (x, y) = (x1/z1, y1/z1)
+    initPonto(R1, Ponto_curva.x, one);
+
+    R1 = double_ponto(R1); // R1 = 2P
+
+    gmp_printf("\nPonto Curva: (%Zd, %Zd)", R1.x, R1.y);
+    validacao_ponto(R1);
 
     // Verifica se k é 0
     if (mpz_cmp_ui(k_var, 0) == 0)
