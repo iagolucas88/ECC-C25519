@@ -39,13 +39,40 @@ void clearPonto(Ponto &P)
     mpz_clear(P.y);
 }
 
+// Coordenada Projetiva
+struct P_projetivo
+{
+    mpz_t x, z;
+};
+
+// Função para inicializar um ponto com valores mpz_t
+void initPontoP(P_projetivo &Pp, const mpz_t xp, const mpz_t zp)
+{
+    mpz_init_set(Pp.x, xp);
+    mpz_init_set(Pp.z, zp);
+}
+
+// Função para inicializar um ponto sem valores específicos
+void initPontoP(Ponto &Pp)
+{
+    mpz_init(Pp.x);
+    mpz_init(Pp.z);
+}
+
+// Função para limpar um ponto, liberando recursos
+void clearPontoP(Ponto &Pp)
+{
+    mpz_clear(Pp.x);
+    mpz_clear(Pp.z);
+}
+
 //*******DECLARA GLOBALMENTE PARAMETROS CURVA ELIPTICA [E: y² = x² + a*x + b (mod p)]*********************
 // E: curva eliptica no campo GF(q) onde |E| = h*n
 // p: numero primo do campo | n: ordem da curva (numero primo enorme)| h: co-fator (numero pequeno, ex.: 1, 2, 4 ou 8)
 // a, b: Curva de Weierstrass (Wa,b) onde 'a' e 'b' são elementos de GF(q) com 4a³ + 27b² != 0
 // P0: ponto base (x0, y0) da curva (qualquer ponto da curva pode ser gerado pelo grupo ciclico <P> ={kP | k = 0,1,2,...} de E)
 mpz_t p, n, a, a24, zero, one;
-mpz_t P_0x, P_0y;
+mpz_t P_0x, P_0y, z1;
 // mpz_t h, b; //'h = 8' e 'b = 1' nao serao ultilizados, economizando memoria
 Ponto P_0;
 
@@ -76,6 +103,7 @@ void inic_parametros_c25519()
     mpz_init_set_ui(P_0x, 9); //x0 = 9
     mpz_init_set_str(P_0y, "14781619447589544791020593568409986887264606134616475288964881837755586237401", 10); // y0 = 14781619447589544791020593568409986887264606134616475288964881837755586237401
     // y0 considerando x0 = 9 (correto pela raiz quadrada modular)
+    mpz_init_set_ui(z1, 1); // z1 = 1
 
     // Inicializa o ponto base da curva 'Curve25519' (E)
     initPonto(P_0, P_0x, P_0y);
@@ -314,51 +342,18 @@ void validacao_ponto(Ponto Q){
 }
 
 // 3. Calcula o 'ADD' retornado a coordenada projetiva X(Q + Q') = x3/z3, somente se Y1 != +/- Y2 
-Ponto add_ponto(Ponto P_1, Ponto P_2){
+P_projetivo add_ponto(P_projetivo Q, P_projetivo Ql){
 
     mpz_t var, var1;
     mpz_inits(var, var1, NULL);
 
-    Ponto P_3;
-    initPonto(P_3); // Inicializa o ponto P_3
-
-    // A coordenada Y1 != +/- Y2
-    if(mpz_cmpabs(P_1.y, P_2.y) == 0)
-    {
-        cout << "\nErro Ponto-ADD (Y1 = +/- Y2)!" << endl;
-        mpz_set_ui(P_3.x, 0);
-        mpz_set_ui(P_3.y, 0);
-        return P_3;
-    }
-    
-    // Se P_1(0, 0), retorne P_2
-    else if((mpz_cmp_ui(P_1.x, 0) == 0 && mpz_cmp_ui(P_1.y, 0) == 0))
-    {
-
-        mpz_set(P_3.x, P_2.x);
-        mpz_set(P_3.y, P_2.y);
-
-        gmp_printf("\n\nP1(0, 0), logo\nP3:(%Zd, %Zd)", P_3.x, P_3.y);
-        return P_3;
-    }
-
-    // Se P_2(0, 0), retorne P_1
-    else if((mpz_cmp_ui(P_2.x, 0) == 0 && mpz_cmp_ui(P_2.y, 0) == 0))
-    {
-        mpz_set(P_3.x, P_1.x);
-        mpz_set(P_3.y, P_1.y);
-
-        gmp_printf("\n\nP2(0, 0), logo\nP3:(%Zd, %Zd)", P_3.x, P_3.y);
-        return P_3;
-    }
-
+    P_projetivo Pp3;
+    initPontoP(Pp3); // Inicializa o ponto Pp3
 
     /*_________________________________________________________________________________________________
         FORMULAS RETIRADAS DO TEOREMA B2 DO APENDIX B (pag. 228)
         Curve25519: New Diﬃe-Hellman Speed Records
-    ___________________________________________________________________________________________________*/
-    else{
-        /* FÓRMULAS TEOREMA B2 DE DANIEL J. BERNSTEIN (MONTEGOMERY LADDER)
+
         Coordenadas: Afins (x, y) --> (X:Y:1) Projetiva
                 Projetiva (X:Y:Z) --> (x/z, y/z, 1) Afins
 
@@ -366,76 +361,115 @@ Ponto add_ponto(Ponto P_1, Ponto P_2){
             X(Q + Q') = x3/z3 para todo Q e Q' pertencentes ao campo E(Fp²), onde
             X(Q) = x/z, X(Q') = x'/z' e X(Q - Q') = x1/z1
         Considerando x1 = 9 e z1 = 1 (pode ser qualquer numero diferente de zero, o valor 1 simplifica os cálculos)
-        */
+    ___________________________________________________________________________________________________*/
 
-       
+    // Caso 1: Q = Q', entao X(Q - Q') = X(0) = 0 (ponto no infinito). Assim, z1 = 0
+    if(mpz_cmpabs(Q.x, Ql.x) == 0 && mpz_cmpabs(Q.z, Ql.z) == 0)
+    {
+        cout << "\nERRO: Q = Q'" << endl;
+        break;
+    }
+    
+    // Caso 2: Q = 0 (ponto no infinito), entao z = 0 e (x, x' e z') != 0, temos X(Q') = X(Q + Q')
+    else if(mpz_cmp_ui(Q.z, 0) == 0 && mpz_cmp_ui(Q.x, 0) != 0 && mpz_cmp_ui(Ql.x, 0) != 0 && mpz_cmp_ui(Ql.z, 0) != 0)
+    {
 
+        mpz_set(Pp3.x, Ql.x);
+        mpz_set(Pp3.z, Ql.z);
+
+        gmp_printf("\n\nQ = 0, logo X(Q') = X(Q + Q')\nPp3 = Q':(%Zd, %Zd)", Pp3.x, Pp3.z);
+        return Pp3;
+    }
+
+    // Caso 3: Q' = 0 (ponto no infinito), entao z' = 0 e (x', x e z) != 0, temos X(Q) = X(Q + Q')
+    else if(mpz_cmp_ui(Ql.z, 0) == 0 && mpz_cmp_ui(Ql.x, 0) != 0 && mpz_cmp_ui(Q.x, 0) != 0 && mpz_cmp_ui(Q.z, 0) != 0)
+    {
+
+        mpz_set(Pp3.x, Q.x);
+        mpz_set(Pp3.z, Q.z);
+
+        gmp_printf("\n\nQ' = 0, logo X(Q) = X(Q + Q')\nPp3 = Q:(%Zd, %Zd)", Pp3.x, Pp3.z);
+        return Pp3;
+    }
+
+    // Caso 4: Q = -Q', entao X(Q') = X(Q). Assim, z3 = 0 e x1 = 0, para x3 != 0 temos X(0) = X(Q + Q')
+    else if(mpz_cmpabs(Q.x, Ql.x) == 0 && mpz_cmp(Q.z, Ql.z) != 0)
+    {
+        mpz_set(Pp3.x, zero);
+        mpz_set(Pp3.z, zero);
+
+        gmp_printf("\n\nQ = -Q', logo X(0) = X(Q + Q')\nPp3 = ponto no infinito:(%Zd, %Zd)", Pp3.x, Pp3.z);
+        return Pp3;
+    }
+
+    // Caso 5: Calcula-se X(Q + Q') = x3/z3, z1 = 1 desconsidera nos calculos
+    //(eh possível retomar as coordenadas afins, entretanto necessitamos apenas de x)   
+    else{
         // x3 = 4*z1(x*x' - z*z')² mod p
-        mpz_mul(var, P_1.x, P_2.x); // x*x'
-        mpz_mul(var1, );   // z*z'
-        mpz_sub(var, var, var1); // x*x' - z*z'
-        mpz_mul(var, var, var); // (x*x' - z*z')²
-        mpz_mul(var, var,); // z1(x*x' - z*z')²  
-        mpz_mul_ui(P_3.x, var, 4); // 4*z1(x*x' - z*z')²
-        mpz_mod(P_3.x, P_3.x, p); // 4*z1(x*x' - z*z')² mod p
+        mpz_mul(var, Q.x, Ql.x);   // x*x'
+        mpz_mul(var1, Q.z, Ql.z);  // z*z'
+        mpz_sub(var, var, var1);   // x*x' - z*z'
+        mpz_mul(var, var, var);    // (x*x' - z*z')² 
+        mpz_mul_ui(Pp3.x, var, 4); // 4*z1(x*x' - z*z')²
+        mpz_mod(Pp3.x, Pp3.x, p);  // 4*z1(x*x' - z*z')² mod p
 
         // z3 = 4*x1(x*z' - z*x')² mod p
-        mpz_mul(var, P_1.x, ); // x*z'
-        mpz_mul(var1, , P_2.x);   // z*x'
-        mpz_sub(var, var, var1); // x*z' - z*x'
-        mpz_mul(var, var, var); // (x*z' - z*x')²
-        mpz_mul(var, var, P_0.x); // x1(x*z' - z*x')²
-        mpz_mul_ui(, var, 4); // 4*x1(x*z' - z*x')²
-        mpz_mod(, p); // 4*x1(x*z' - z*x')² mod p
+        mpz_mul(var, Q.x, Ql.z); // x*z'
+        mpz_mul(var1, Q.z, Ql.x);  // z*x'
+        mpz_sub(var, var, var1);   // x*z' - z*x'
+        mpz_mul(var, var, var);    // (x*z' - z*x')²
+        mpz_mul(var, var, P_0.x);  // x1(x*z' - z*x')²
+        mpz_mul_ui(Pp3.z, var, 4); // 4*x1(x*z' - z*x')²
+        mpz_mod(Pp3.z, Pp3.z, p);  // 4*x1(x*z' - z*x')² mod p
         
         
         /*
         // x3 = 4*z0(x1*x2 - z1*z2)² mod p
-        mpz_mul(var, P_1.x, P_2.x); // x1*x2
-        mpz_mul(var1, P_1.y, P_2.y);   // y1*y2
+        mpz_mul(var, Q.x, Ql.x); // x1*x2
+        mpz_mul(var1, Q.y, Ql.y);   // y1*y2
         mpz_sub(var, var, var1); // x1*x2 - y1*y2
         mpz_mul(var, var, var); // (x1*x2 - y1*y2)²
         mpz_mul(var, var, P_0.y); // z0(x1*x2 - y1*y2)²  ERRADO: O z0 NAO EH P0_Y POIS EH COORD. PROJETIVA
-        mpz_mul_ui(P_3.x, var, 4); // 4*z0(x1*x2 - y1*y2)²
-        mpz_mod(P_3.x, P_3.x, p); // 4*z0(x1*x2 - y1*y2)² mod p
+        mpz_mul_ui(Pp3.x, var, 4); // 4*z0(x1*x2 - y1*y2)²
+        mpz_mod(Pp3.x, Pp3.x, p); // 4*z0(x1*x2 - y1*y2)² mod p
 
         // y3 = 4*x0(x1*z2 - z1*x2)² mod p
-        mpz_mul(var, P_1.x, P_2.y); // x1*y2
-        mpz_mul(var1, P_1.y, P_2.x);   // y1*x2
+        mpz_mul(var, Q.x, Ql.y); // x1*y2
+        mpz_mul(var1, Q.y, Ql.x);   // y1*x2
         mpz_sub(var, var, var1); // x1*y2 - y1*x2
         mpz_mul(var, var, var); // (x1*y2 - y1*x2)²
         mpz_mul(var, var, P_0.x); // x0(x1*y2 - y1*x2)²
-        mpz_mul_ui(P_3.y, var, 4); // 4*x0(x1*y2 - y1*x2)²
-        mpz_mod(P_3.y, P_3.y, p); // 4*x0(x1*y2 - y1*x2)² mod p
+        mpz_mul_ui(Pp3.y, var, 4); // 4*x0(x1*y2 - y1*x2)²
+        mpz_mod(Pp3.y, Pp3.y, p); // 4*x0(x1*y2 - y1*x2)² mod p
         */
 
-        //gmp_printf("\nP3:(%Zd, %Zd)", P_3.x, P_3.y);
+        //gmp_printf("\nP3:(%Zd, %Zd)", Pp3.x, Pp3.y);
 
-        return P_3;
+        return Pp3;
     }
 }
 
 // 4. Calcula o 'DOUBLE' retornado P3(X3,Y3) somente se Y1 != 0
-Ponto double_ponto(Ponto P){
-    Ponto P_double;
-    initPonto(P_double, P.x, P.y); // Inicializa o ponto P_double
+P_projetivo double_ponto(P_projetivo Q){
+    P_projetivo Pp2;
+    initPontop(Pp2, Q.x, Q.z); // Inicializa o ponto Pp2
 
     // Verifica se X ou Y != 0
     if(mpz_cmp_ui(P.x, 0) == 0 || mpz_cmp_ui(P.y, 0) == 0){
         cout << "\nErro Ponto-Double (X ou Y = 0)!" << endl;
-        mpz_set_ui(P_double.x, 0);
-        mpz_set_ui(P_double.y, 0);
+        mpz_set_ui(Pp2.x, 0);
+        mpz_set_ui(Pp2.y, 0);
 
-        return P_double;
+        return Pp2;
     }
 
     // Verifica se o ponto Ponto < p (primo)
     else if(mpz_cmp(P.x, p) > 0 || mpz_cmp(P.y, p) > 0){
         cout << "\nErro Ponto-Double (Ponto > p)!" << endl;
-        mpz_set_ui(P_double.x, 0);
-        mpz_set_ui(P_double.y, 0);
+        mpz_set_ui(Pp2.x, 0);
+        mpz_set_ui(Pp2.y, 0);
 
-        return P_double;
+        return Pp2;
     }
 
     else{
@@ -443,51 +477,51 @@ Ponto double_ponto(Ponto P){
         mpz_inits(var, var1, NULL);
 
         // FÓRMULAS DE DANIEL J. BERNSTEIN
-        // x2 = (x^2 - y^2)² mod p
-        mpz_mul(var, P.x, P.x); // x^2
-        mpz_mul(var1, P.y, P.y);   // y^2
-        mpz_sub(var, var, var1); // x^2 - y^2
-        mpz_mul(var, var, var); // (x^2 - y^2)²
-        mpz_mod(P_double.x, var, p); // (x^2 - y^2)² mod p
+        // x2 = (x² - z²)² mod p
+        mpz_mul(var, Q.x, Q.x); // x²
+        mpz_mul(var1, Q.z, Q.z);   // z²
+        mpz_sub(var, var, var1); // x² - z²
+        mpz_powm(Pp2.x, var, 2, p); // (x² - z²)² mod p
 
 
-    //COORDENADAS PROJETIVAS Z2. X(2Q) = x2/z2 e Q = (x/z, y)
-        // y2 = 4*x*y*(x^2 + a*x*y + y^2) mod p
-        mpz_mul(var, P.x, P.y); // x*y
-        mpz_mul(var1, var, a); // a*x*y
-        mpz_mul(P_double.y, P.x, P.x); // x^2 
-        mpz_add(P_double.y, P_double.y, var1); // x^2 + a*x*y
-        mpz_mul(var1, P.y, P.y); // y^2
-        mpz_add(P_double.y, P_double.y, var1); // x^2 + a*x*y + y^2
-        mpz_mul_ui(var, var, 4); // 4*x*y
-        mpz_mul(P_double.y, P_double.y, var); // 4*x*y*(x^2 + a*x*y + y^2)
-        mpz_mod(P_double.y, P_double.y, p); // 4*x*y*(x^2 + a*x*y + y^2) mod p 
+        //COORDENADAS PROJETIVAS Z2. X(2Q) = x2/z2 e Q = (x/z, y)
+        // z2 = 4*x*z*(x² + a*x*z + z²) mod p
+        mpz_mul(var, Q.x, Q.z); // x*z
+        mpz_mul(var1, var, a); // a*x*z
+        mpz_mul(Pp2.z, Q.x, Q.x); // x² 
+        mpz_add(Pp2.z, Pp2.z, var1); // x² + a*x*z
+        mpz_mul(var1, Q.z, Q.z); // z²
+        mpz_add(Pp2.z, Pp2.z, var1); // x² + a*x*z + z²
+        mpz_mul_ui(var, var, 4); // 4*x*z
+        mpz_mul(Pp2.z, Pp2.z, var); // 4*x*z*(x² + a*x*z + z²)
+        mpz_mod(Pp2.z, Pp2.z, p); // 4*x*z*(x² + a*x*z + z²) mod p 
 
-        //gmp_printf("\nPonto dobrado:\nx2: %Zd\ny2: %Zd\n", P_double.x, P_double.y);
+        //gmp_printf("\nPonto dobrado:\nx2: %Zd\nz2: %Zd\n", Pp2.x, Pp2.z);
 
-        return P_double;
+        return Pp2;
     }
 }
 
 // 5. Multiplicacao de um ponto por um escalar (k*P)
-Ponto multiplicacao_escalar(mpz_t k_rand, Ponto Ponto_curva){
+P_projetivo multiplicacao_escalar(mpz_t k_rand, mpz_t coord_x){
     cout << "\n\n__________________________Mult Escalar______________________________\n" << endl; // REMOVER
 
     // Para não alterar o valor original de k_rand
     mpz_t k_var;
     mpz_init_set(k_var, k_rand);
 
-    // Deve-se iniciar R0 = P e R1 = 2P
-    // R0: Ponto resultante no infinito (zero)
-    // R1: Ponto "doubler" (Ponto_curva dobrado)
-    Ponto R0, R1;
-    initPonto(R0, Ponto_curva.x, one);  // R0 = (x, y) = (x1/z1, y1/z1)
-    initPonto(R1, Ponto_curva.x, one);
-
-    R1 = double_ponto(R1); // R1 = 2P
-
-    gmp_printf("\nPonto Curva: (%Zd, %Zd)", R1.x, R1.y);
-    validacao_ponto(R1);
+    // Deve-se iniciar R0 = Pp e R1 = 2Pp
+    // R0: Ponto projetivo resultante no infinito (zero)
+    // R1: Ponto projetivo "doubler" (Pp dobrado)
+    P_projetivo R0, R1;
+    initPontop(R0, coord_x, one);  // R0 = Pp = x1/z1 : (x1/z1, y1/z1)
+    gmp_printf("\nPonto Projetivo: (%Zd, %Zd)", R0.x, R0.z);
+    
+    initPontop(R1, coord_x, one);
+    R1 = double_ponto(R1); // R1 = 2Pp
+    gmp_printf("\nPonto Projetivo Dobrado: (%Zd, %Zd)", R1.x, R1.z);
+    
+    //validacao_ponto(R1);
 
     // Verifica se k é 0
     if (mpz_cmp_ui(k_var, 0) == 0)
@@ -517,26 +551,26 @@ Ponto multiplicacao_escalar(mpz_t k_rand, Ponto Ponto_curva){
             {
                 R1 = add_ponto(R0, R1); // R1 = R0 + R1
                 gmp_printf("\n\nResultado R1 ADD++++++++++\nx: %Zd \ny: %Zd", R1.x, R1.y);
-                validacao_ponto(R1);
+                //validacao_ponto(R1);
 
                 R0 = double_ponto(R0); // R0 = 2*R0
                 gmp_printf("\n\nResultado R0 DOUBLE**********\nx: %Zd \ny: %Zd", R0.x, R0.y);
-                validacao_ponto(R0);
+                //validacao_ponto(R0);
             } 
             
             else 
             {
                 R0 = add_ponto(R0, R1); // R0 = R0 + R1
                 gmp_printf("\n\nResultado R0 ADD++++++++++\nx: %Zd \ny: %Zd", R0.x, R0.y);
-                validacao_ponto(R0);
+                //validacao_ponto(R0);
 
                 R1 = double_ponto(R1); // R1 = 2*R1
                 gmp_printf("\n\nResultado R1 DOUBLE**********\nx: %Zd \ny: %Zd", R1.x, R1.y);
-                validacao_ponto(R1);
+                //validacao_ponto(R1);
             }
         }
 
-        clearPonto(R1); // Limpa o ponto R1
+        clearPontop(R1); // Limpa o ponto R1
         mpz_clears(k_bit, tam, NULL); // Limpa as variáveis temporárias
 
         cout << "\n\n________________________FIM Mult Escalar____________________________\n" << endl;
