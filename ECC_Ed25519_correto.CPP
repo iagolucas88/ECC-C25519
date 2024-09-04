@@ -39,7 +39,7 @@ void clearPonto(Ponto &P)
     mpz_clear(P.y);
 }
 
-// Coordenada Projetiva
+// *****************Coordenada Projetiva*******************
 struct P_projetivo
 {
     mpz_t x, z;
@@ -53,14 +53,14 @@ void initPontoP(P_projetivo &Pp, const mpz_t xp, const mpz_t zp)
 }
 
 // Função para inicializar um ponto sem valores específicos
-void initPontoP(Ponto &Pp)
+void initPontoP(P_projetivo &Pp)
 {
     mpz_init(Pp.x);
     mpz_init(Pp.z);
 }
 
 // Função para limpar um ponto, liberando recursos
-void clearPontoP(Ponto &Pp)
+void clearPontoP(P_projetivo &Pp)
 {
     mpz_clear(Pp.x);
     mpz_clear(Pp.z);
@@ -348,7 +348,7 @@ P_projetivo add_ponto(P_projetivo Q, P_projetivo Ql){
     mpz_inits(var, var1, NULL);
 
     P_projetivo Pp3;
-    initPontoP(Pp3); // Inicializa o ponto Pp3
+    initPontoP(Pp3, zero, zero); // Inicializa o ponto Pp3
 
     /*_________________________________________________________________________________________________
         FORMULAS RETIRADAS DO TEOREMA B2 DO APENDIX B (pag. 228)
@@ -366,8 +366,12 @@ P_projetivo add_ponto(P_projetivo Q, P_projetivo Ql){
     // Caso 1: Q = Q', entao X(Q - Q') = X(0) = 0 (ponto no infinito). Assim, z1 = 0
     if(mpz_cmpabs(Q.x, Ql.x) == 0 && mpz_cmpabs(Q.z, Ql.z) == 0)
     {
-        cout << "\nERRO: Q = Q'" << endl;
-        break;
+        mpz_set(Pp3.x, zero);
+        mpz_set(Pp3.z, zero);
+
+        gmp_printf("\n\nQ = Q', logo X(Q - Q') = X(0) = 0\nPp3 = 0:(%Zd, %Zd)", Pp3.x, Pp3.z);
+
+        return Pp3;
     }
     
     // Caso 2: Q = 0 (ponto no infinito), entao z = 0 e (x, x' e z') != 0, temos X(Q') = X(Q + Q')
@@ -452,49 +456,50 @@ P_projetivo add_ponto(P_projetivo Q, P_projetivo Ql){
 // 4. Calcula o 'DOUBLE' retornado P3(X3,Y3) somente se Y1 != 0
 P_projetivo double_ponto(P_projetivo Q){
     P_projetivo Pp2;
-    initPontop(Pp2, Q.x, Q.z); // Inicializa o ponto Pp2
+    initPontoP(Pp2, Q.x, Q.z); // Inicializa o ponto Pp2
 
-    // Verifica se X ou Y != 0
-    if(mpz_cmp_ui(P.x, 0) == 0 || mpz_cmp_ui(P.y, 0) == 0){
-        cout << "\nErro Ponto-Double (X ou Y = 0)!" << endl;
+    // Caso 1: z = 0, entao x2 = x⁴ != 0 e z2 = 0, temos X(2Q) = 0 (ponto no infinito)
+    if(mpz_cmp_ui(Q.z, 0) == 0)
+    {
+        cout << "\nz = 0, X(2Q) = 0" << endl;
         mpz_set_ui(Pp2.x, 0);
-        mpz_set_ui(Pp2.y, 0);
+        mpz_set_ui(Pp2.z, 0);
 
         return Pp2;
     }
 
-    // Verifica se o ponto Ponto < p (primo)
-    else if(mpz_cmp(P.x, p) > 0 || mpz_cmp(P.y, p) > 0){
-        cout << "\nErro Ponto-Double (Ponto > p)!" << endl;
+    // Caso 2: z != 0 e x = 0, entao x2 = z⁴ != 0 e z2 = 0, temos X(2Q) = 0 (ponto no infinito)
+    else if(mpz_cmp_ui(Q.x, 0) == 0)
+    {
+        cout << "\nx = 0, X(2Q) = 0" << endl;
         mpz_set_ui(Pp2.x, 0);
-        mpz_set_ui(Pp2.y, 0);
+        mpz_set_ui(Pp2.z, 0);
 
         return Pp2;
     }
 
+    // Caso 3: x != 0 e z != 0, entao Q = (x/z, y/z, 1) 'AFINS', temos X(2Q) = x2/z2
     else{
         mpz_t var, var1;
         mpz_inits(var, var1, NULL);
+        
+        // X(2Q) = x2/z2 e Q = (x/z, y)
+        // x2 = (x² - z²)² mod p       
+        mpz_mul(var, Q.x, Q.x);       // x²
+        mpz_mul(Pp2.x, Q.z, Q.z);     // z²
+        mpz_sub(Pp2.x, var, Pp2.x);   // x² - z²
+        mpz_powm_ui(Pp2.x, Pp2.x, 2, p); // (x² - z²)² mod p
 
-        // FÓRMULAS DE DANIEL J. BERNSTEIN
-        // x2 = (x² - z²)² mod p
-        mpz_mul(var, Q.x, Q.x); // x²
-        mpz_mul(var1, Q.z, Q.z);   // z²
-        mpz_sub(var, var, var1); // x² - z²
-        mpz_powm(Pp2.x, var, 2, p); // (x² - z²)² mod p
-
-
-        //COORDENADAS PROJETIVAS Z2. X(2Q) = x2/z2 e Q = (x/z, y)
         // z2 = 4*x*z*(x² + a*x*z + z²) mod p
-        mpz_mul(var, Q.x, Q.z); // x*z
-        mpz_mul(var1, var, a); // a*x*z
-        mpz_mul(Pp2.z, Q.x, Q.x); // x² 
+        mpz_mul(var, Q.x, Q.z);      // x*z
+        mpz_mul(var1, var, a);       // a*x*z
+        mpz_mul(Pp2.z, Q.x, Q.x);    // x²
         mpz_add(Pp2.z, Pp2.z, var1); // x² + a*x*z
-        mpz_mul(var1, Q.z, Q.z); // z²
+        mpz_mul(var1, Q.z, Q.z);     // z²
         mpz_add(Pp2.z, Pp2.z, var1); // x² + a*x*z + z²
-        mpz_mul_ui(var, var, 4); // 4*x*z
-        mpz_mul(Pp2.z, Pp2.z, var); // 4*x*z*(x² + a*x*z + z²)
-        mpz_mod(Pp2.z, Pp2.z, p); // 4*x*z*(x² + a*x*z + z²) mod p 
+        mpz_mul_ui(var, var, 4);     // 4*x*z
+        mpz_mul(Pp2.z, Pp2.z, var);  // 4*x*z*(x² + a*x*z + z²)
+        mpz_mod(Pp2.z, Pp2.z, p);    // 4*x*z*(x² + a*x*z + z²) mod p
 
         //gmp_printf("\nPonto dobrado:\nx2: %Zd\nz2: %Zd\n", Pp2.x, Pp2.z);
 
@@ -514,10 +519,10 @@ P_projetivo multiplicacao_escalar(mpz_t k_rand, mpz_t coord_x){
     // R0: Ponto projetivo resultante no infinito (zero)
     // R1: Ponto projetivo "doubler" (Pp dobrado)
     P_projetivo R0, R1;
-    initPontop(R0, coord_x, one);  // R0 = Pp = x1/z1 : (x1/z1, y1/z1)
+    initPontoP(R0, coord_x, one);  // R0 = Pp = x1/z1 : (x1/z1, y1/z1)
     gmp_printf("\nPonto Projetivo: (%Zd, %Zd)", R0.x, R0.z);
     
-    initPontop(R1, coord_x, one);
+    initPontoP(R1, coord_x, one);
     R1 = double_ponto(R1); // R1 = 2Pp
     gmp_printf("\nPonto Projetivo Dobrado: (%Zd, %Zd)", R1.x, R1.z);
     
@@ -528,7 +533,7 @@ P_projetivo multiplicacao_escalar(mpz_t k_rand, mpz_t coord_x){
     {
         gmp_printf("\nk = 0\nx: % Zd", R1.x); // Apenas x eh necessario para a chave publica
 
-        clearPonto(R0); // Limpa o ponto R0
+        clearPontoP(R0); // Limpa o ponto R0
 
         return R1; // Retorna o Ponto Curva se k é 0
     }
@@ -550,27 +555,27 @@ P_projetivo multiplicacao_escalar(mpz_t k_rand, mpz_t coord_x){
             if (bit == 0)
             {
                 R1 = add_ponto(R0, R1); // R1 = R0 + R1
-                gmp_printf("\n\nResultado R1 ADD++++++++++\nx: %Zd \ny: %Zd", R1.x, R1.y);
+                gmp_printf("\n\nResultado R1 ADD++++++++++\nx: %Zd \nz: %Zd", R1.x, R1.z);
                 //validacao_ponto(R1);
 
                 R0 = double_ponto(R0); // R0 = 2*R0
-                gmp_printf("\n\nResultado R0 DOUBLE**********\nx: %Zd \ny: %Zd", R0.x, R0.y);
+                gmp_printf("\n\nResultado R0 DOUBLE**********\nx: %Zd \nz: %Zd", R0.x, R0.z);
                 //validacao_ponto(R0);
             } 
             
             else 
             {
                 R0 = add_ponto(R0, R1); // R0 = R0 + R1
-                gmp_printf("\n\nResultado R0 ADD++++++++++\nx: %Zd \ny: %Zd", R0.x, R0.y);
+                gmp_printf("\n\nResultado R0 ADD++++++++++\nx: %Zd \nz: %Zd", R0.x, R0.z);
                 //validacao_ponto(R0);
 
                 R1 = double_ponto(R1); // R1 = 2*R1
-                gmp_printf("\n\nResultado R1 DOUBLE**********\nx: %Zd \ny: %Zd", R1.x, R1.y);
+                gmp_printf("\n\nResultado R1 DOUBLE**********\nx: %Zd \nz: %Zd", R1.x, R1.z);
                 //validacao_ponto(R1);
             }
         }
 
-        clearPontop(R1); // Limpa o ponto R1
+        clearPontoP(R1); // Limpa o ponto R1
         mpz_clears(k_bit, tam, NULL); // Limpa as variáveis temporárias
 
         cout << "\n\n________________________FIM Mult Escalar____________________________\n" << endl;
@@ -652,12 +657,12 @@ void gera_int_rand(mpz_t k)
 }
 
 // 7. Gera a CHAVE PUBLICA ultilizando a multiplicacao escalar da CHAVE PRIVADA com o Ponto base dado P_0
-Ponto gera_chave_pbl(mpz_t chave_prv, Ponto P0){ // pode fazer na main() apenas igualando o ponto
-    return multiplicacao_escalar(chave_prv, P0);
+P_projetivo gera_chave_pbl(mpz_t chave_prv, mpz_t P0x){ // pode fazer na main() apenas igualando o ponto
+    return multiplicacao_escalar(chave_prv, P0x);
 }
 
 // 8. Encripta a mensagem ultilizando a CHAVE PUBLICA
-void encriptar_mensagem(Ponto msg_cod, Ponto chave_pbl, Ponto &C1, Ponto &C2){
+void encriptar_mensagem(Ponto msg_cod, P_projetivo chave_pbl, P_projetivo &C1, P_projetivo &C2){
     cout << "\n\n____________________________ENCRYPT________________________________\n"
          << endl; // REMOVER
 
@@ -680,20 +685,23 @@ void encriptar_mensagem(Ponto msg_cod, Ponto chave_pbl, Ponto &C1, Ponto &C2){
 
     gera_int_rand(chv_prv_efemera); // Gera uma chave privada efemera
 
-    Ponto ponto_mult_chv_pbl;
-    initPonto(C1);
-    initPonto(C2);
-    initPonto(ponto_mult_chv_pbl);
+    P_projetivo ponto_mult_chv_pbl, msg_cod_p;
+    initPontoP(C1, zero, zero);
+    initPontoP(C2, zero, zero);
+    initPontoP(ponto_mult_chv_pbl, zero, zero);
+    initPontoP(msg_cod_p, msg_cod.x, one);
 
     gmp_printf("\nC1 (k): %Zd", chv_prv_efemera);
 
-    C1 = multiplicacao_escalar(chv_prv_efemera, P_0);                   // C1 = k*P_0
+    C1 = multiplicacao_escalar(chv_prv_efemera, P_0.x);                   // C1 = k*P_0.x
 
     //teste para retornar o valor de k, pois está zerando.
     //mpz_set_ui(chv_prv_efemera, 11);  // k = 11
 
-    ponto_mult_chv_pbl = multiplicacao_escalar(chv_prv_efemera, chave_pbl); // k*Pb
-    C2 = add_ponto(msg_cod, ponto_mult_chv_pbl);                            // C2 = Pm + k*Pb
+    ponto_mult_chv_pbl = multiplicacao_escalar(chv_prv_efemera, chave_pbl.x); // k*Pb
+
+
+    C2 = add_ponto(msg_cod_p, ponto_mult_chv_pbl);                            // C2 = Pm + k*Pb
 
     //gmp_printf("\n\nCifras DEPOIS\n C1: x: %Zd | y: %Zd", C1.x, C2.y);
     //gmp_printf("\n C2: x: %Zd | y: %Zd", C2.x, C2.y);
@@ -703,24 +711,24 @@ void encriptar_mensagem(Ponto msg_cod, Ponto chave_pbl, Ponto &C1, Ponto &C2){
 }
 
 // 9. Decripta a mensagem ultilizando a CHAVE PRIVADA
-Ponto decriptar_mensagem(Ponto C1, Ponto C2, mpz_t chave_prv){
+P_projetivo decriptar_mensagem(P_projetivo C1, P_projetivo C2, mpz_t chave_prv){
     // cout << "\n\n____________________________DECRYPT________________________________\n" << endl; // REMOVER
 
-    Ponto P_msg, chv_prv_mult_C1;
-    initPonto(P_msg);
-    initPonto(chv_prv_mult_C1);
+    P_projetivo Pp_msg, chv_prv_mult_C1;
+    initPontoP(Pp_msg, zero, zero);
+    initPontoP(chv_prv_mult_C1, zero, zero);
 
-    chv_prv_mult_C1 = multiplicacao_escalar(chave_prv, C1); // k*C1
+    chv_prv_mult_C1 = multiplicacao_escalar(chave_prv, C1.x); // k*C1
 
-    mpz_neg(chv_prv_mult_C1.y, chv_prv_mult_C1.y); // k*C1 = (x, -y)
+    mpz_neg(chv_prv_mult_C1.z, chv_prv_mult_C1.z); // k*C1 = (x, -z)
 
-    P_msg = add_ponto(C2, chv_prv_mult_C1); // P_msg = C2 + k*C1
+    Pp_msg = add_ponto(C2, chv_prv_mult_C1); // P_msg = C2 + k*C1
 
     // Divide por 100 para obter a mensagem original
     // mpz_tdiv_q_ui(P_msg.x, P_msg.x, 100);
 
     // cout << "\n___________________________FIM DECRYPT____________________________\n" << endl; // REMOVER
-    return P_msg;
+    return Pp_msg;
 }
 
 // 10. Decodifica a mensagem para string
@@ -790,26 +798,26 @@ int main(){
     gmp_printf("\n\nChave Privada: % Zd ", chv_prv);
 
     // Gera a Chave Publica fornecendo a Chave Privada
-    // pela multiplicacao escalar ultilizando o ponto inicial (x1, y1)
-    Ponto chave_pbl = gera_chave_pbl(chv_prv, P_0);
+    // pela multiplicacao escalar ultilizando a coordenada x do ponto inicial (x1)
+    P_projetivo chave_pbl = gera_chave_pbl(chv_prv, P_0.x);
     gmp_printf("\n\nChave Publica \nx: % Zd", chave_pbl.x);
-    gmp_printf("\ny: % Zd", chave_pbl.y);
+    gmp_printf("\nz: % Zd", chave_pbl.z);
 
-    Ponto C1, C2;
-    initPonto(C1);
-    initPonto(C2);
+    P_projetivo C1, C2;
+    initPontoP(C1);
+    initPontoP(C2);
 
     // Encripta a mensagem ultilizando a Chave Publica
     encriptar_mensagem(msg_cod, chave_pbl, C1, C2);
-    gmp_printf("\n\nMensagem criptografada\nC1: x = % Zd | y = % Zd", C1.x, C1.y);
-    gmp_printf("\nC2: x = % Zd | y = % Zd", C2.x, C2.y);
+    gmp_printf("\n\nMensagem criptografada\nC1: x = % Zd | z = % Zd", C1.x, C1.z);
+    gmp_printf("\nC2: x = % Zd | z = % Zd", C2.x, C2.z);
 
-    Ponto msg_dec;
-    initPonto(msg_dec);
+    P_projetivo msg_dec;
+    initPontoP(msg_dec);
 
     // Decripta a mensagem ultilizando a Chave Privada
     msg_dec = decriptar_mensagem(C1, C2, chv_prv);
-    gmp_printf("\n\nMensagem descriptografada: \nx: %Zd\ny: %Zd", msg_dec.x, msg_dec.y);
+    gmp_printf("\n\nMensagem descriptografada: \nx: %Zd\nz: %Zd", msg_dec.x, msg_dec.z);
 
     // Decodifica a mensagem para string original
     descodifica_ponto_para_string(msg_dec.x);
