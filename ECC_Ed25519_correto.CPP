@@ -226,7 +226,7 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
     
 
     // Multiplica por 100 para garantir no Teste de Euler as adições sejam descartadas
-    mpz_mul_ui(x_msg, x_msg, 100); // x_msg = msg * 100
+    //mpz_mul_ui(x_msg, x_msg, 100); // x_msg = msg * 100
 
     Ponto P_msg;
     initPonto(P_msg, x_msg, y_msg); // Inicializa o ponto P_msg
@@ -508,12 +508,13 @@ P_projetivo double_ponto(P_projetivo Q){
 }
 
 // 5. Multiplicacao de um ponto por um escalar (k*P)
-P_projetivo multiplicacao_escalar(mpz_t k_rand, mpz_t coord_x){
+mpz_t multiplicacao_escalar(mpz_t k_rand, mpz_t coord_x){
     cout << "\n\n__________________________Mult Escalar______________________________\n" << endl; // REMOVER
 
     // Para não alterar o valor original de k_rand
-    mpz_t k_var;
+    mpz_t k_var, R0x_afim;
     mpz_init_set(k_var, k_rand);
+    mpz_init(R0x_afim);
 
     // Deve-se iniciar R0 = Pp e R1 = 2Pp
     // R0: Ponto projetivo resultante no infinito (zero)
@@ -535,7 +536,9 @@ P_projetivo multiplicacao_escalar(mpz_t k_rand, mpz_t coord_x){
 
         clearPontoP(R0); // Limpa o ponto R0
 
-        return R1; // Retorna o Ponto Curva se k é 0
+        
+
+        //return R1; // Retorna o Ponto Curva se k é 0
     }
 
     else{
@@ -548,7 +551,7 @@ P_projetivo multiplicacao_escalar(mpz_t k_rand, mpz_t coord_x){
         {
             int bit = mpz_tstbit(k_var, mpz_get_ui(tam)-1);
             
-            gmp_printf("\ntam: %Zd", tam);
+            gmp_printf("\n\ntam: %Zd", tam);
             gmp_printf("\nk_bit: %Zd", k_bit);
             cout << "\nBIT: " << bit << endl;
 
@@ -580,7 +583,10 @@ P_projetivo multiplicacao_escalar(mpz_t k_rand, mpz_t coord_x){
 
         cout << "\n\n________________________FIM Mult Escalar____________________________\n" << endl;
 
-        return R0; // Retorna o resultado da multiplicação escalar
+        // Retorna o quociente da divisao de R0.x/R0.z
+        return mpz_divexact(R0x_afim, R0.x, R0.z);    
+
+        //return R0; // Retorna o resultado da multiplicação escalar
     }
 }
 
@@ -657,12 +663,12 @@ void gera_int_rand(mpz_t k)
 }
 
 // 7. Gera a CHAVE PUBLICA ultilizando a multiplicacao escalar da CHAVE PRIVADA com o Ponto base dado P_0
-P_projetivo gera_chave_pbl(mpz_t chave_prv, mpz_t P0x){ // pode fazer na main() apenas igualando o ponto
+mpz_t gera_chave_pbl(mpz_t chave_prv, mpz_t P0x){ // pode fazer na main() apenas igualando o ponto
     return multiplicacao_escalar(chave_prv, P0x);
 }
 
 // 8. Encripta a mensagem ultilizando a CHAVE PUBLICA
-void encriptar_mensagem(Ponto msg_cod, P_projetivo chave_pbl, P_projetivo &C1, P_projetivo &C2){
+void encriptar_mensagem(Ponto msg_cod, mpz_t chave_pbl, P_projetivo &C1, P_projetivo &C2){
     cout << "\n\n____________________________ENCRYPT________________________________\n"
          << endl; // REMOVER
 
@@ -732,7 +738,7 @@ P_projetivo decriptar_mensagem(P_projetivo C1, P_projetivo C2, mpz_t chave_prv){
 }
 
 // 10. Decodifica a mensagem para string
-void descodifica_ponto_para_string(mpz_t msg_x){
+void decodifica_ponto_para_string(mpz_t msg_x){
     mpz_t var, var_1, var_2;
     mpz_inits(var, var_1, var_2, NULL);
 
@@ -780,7 +786,7 @@ int main(){
     mpz_t msg_t_gmp, msg_des;
     mpz_inits(msg_t_gmp, msg_des, NULL);
 
-    // Inicia a chave privada e efemera
+    // Inicia a chave privada
     mpz_t chv_prv, k;
     mpz_inits(chv_prv, k, NULL);
 
@@ -799,9 +805,9 @@ int main(){
 
     // Gera a Chave Publica fornecendo a Chave Privada
     // pela multiplicacao escalar ultilizando a coordenada x do ponto inicial (x1)
-    P_projetivo chave_pbl = gera_chave_pbl(chv_prv, P_0.x);
-    gmp_printf("\n\nChave Publica \nx: % Zd", chave_pbl.x);
-    gmp_printf("\nz: % Zd", chave_pbl.z);
+    mpz_t chave_pbl = gera_chave_pbl(chv_prv, P_0.x);
+    gmp_printf("\n\nChave Publica \nx: % Zd", chave_pbl);
+    //gmp_printf("\nz: % Zd", chave_pbl.z);
 
     P_projetivo C1, C2;
     initPontoP(C1);
@@ -820,7 +826,7 @@ int main(){
     gmp_printf("\n\nMensagem descriptografada: \nx: %Zd\nz: %Zd", msg_dec.x, msg_dec.z);
 
     // Decodifica a mensagem para string original
-    descodifica_ponto_para_string(msg_dec.x);
+    decodifica_ponto_para_string(msg_dec.x);
 
     // Limpa variáveis para liberar memória
     // mpz_clears(h, b, NULL);
