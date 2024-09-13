@@ -262,6 +262,8 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
     mpz_set(P_msg.x, x_msg);
     mpz_set(P_msg.y, y_msg);
 
+    gmp_printf("\n\nPonto codificado:\nx: %Zd\ny: %Zd", P_msg.x, P_msg.y);
+
     // Limpa variáveis temporárias
     mpz_clears(x_msg, y_msg, y_msg_squared, var, exp_euler, NULL);
 
@@ -317,8 +319,6 @@ void add_ponto(P_projetivo &Pp3, P_projetivo &Q, P_projetivo &Ql)
 {
     mpz_t var, var1;
     mpz_inits(var, var1, NULL);
-
-    initPontoP(Pp3, zero, zero); // Inicializa o ponto Pp3
 
     /*_________________________________________________________________________________________________
         FORMULAS RETIRADAS DO TEOREMA B2 DO APENDIX B (pag. 228)
@@ -390,10 +390,6 @@ void add_ponto(P_projetivo &Pp3, P_projetivo &Q, P_projetivo &Ql)
 // 4. Calcula o 'DOUBLE' retornado P3(X3,Y3) somente se Y1 != 0
 void double_ponto(P_projetivo &Pp2, P_projetivo &Q)
 {
-    //P_projetivo Pp2;
-    initPontoP(Pp2, zero, zero); // Inicializa o ponto Pp2
-    initPontoP(Q, Q.x, Q.z);   // Inicializa o ponto Q
-
     // Caso 1: z = 0, entao x2 = x⁴ != 0 e z2 = 0, temos X(2Q) = 0 (ponto no infinito)
     if(mpz_cmp_ui(Q.z, 0) == 0)
     {
@@ -435,6 +431,33 @@ void double_ponto(P_projetivo &Pp2, P_projetivo &Q)
     }
 }
 
+void conv_coord_proj_to_afim(mpz_t &cood_afim, P_projetivo &Pp)
+{
+    mpz_t inv;
+    mpz_init(inv);
+
+    // Calcula o inverso modular do divisor: Z_inv = Z^(p-2) mod p
+    if (mpz_invert(inv, Pp.z, p) == 0)
+    {
+        cout << "Divisor não tem inverso modular." << endl;
+        mpz_clear(inv);
+        return; // Encerra a função imediatamente
+    }
+
+    // Multiplica o dividendo pelo inverso modular: x = X * Z_inv mod p
+    mpz_mul(cood_afim, Pp.x, inv);
+    mpz_mod(cood_afim, cood_afim, p);
+
+    mpz_clear(inv);
+}
+
+void swap_condicional(P_projetivo &R0, P_projetivo &R1, int &bit_cond) {
+    if (bit_cond) {
+        mpz_swap(R0.x, R1.x);
+        mpz_swap(R0.z, R1.z);
+    }
+}
+
 // 5. Multiplicacao de um ponto por um escalar (k*P)
 void multiplicacao_escalar(mpz_t &coord_x_afim, const mpz_t &k_rand, const mpz_t &coord_x)
 {
@@ -443,18 +466,16 @@ void multiplicacao_escalar(mpz_t &coord_x_afim, const mpz_t &k_rand, const mpz_t
     // Para não alterar o valor original de k_rand
     mpz_t k_var;
     mpz_init_set(k_var, k_rand);
-    mpz_init(coord_x_afim);
+    //mpz_init(coord_x_afim);
 
-    // VERIFICARRRRRRRRRRRRRRRRRRRRRR!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    // Deve-se iniciar R0 = Pp e R1 = 2Pp
-    // R0: Ponto projetivo resultante no infinito (zero)
-    // R1: Ponto projetivo "doubler" (Pp dobrado)
+    // Deve-se iniciar R0 = P e R1 = 2P 
+    // Para garantir a simetricidade com swap condicional para evitar ataques de canal lateral garantindo o constant-time
     P_projetivo R0, R1;
     initPontoP(R0, coord_x, one);  // R0 = Pp = x1/z1 : (x1/z1, y1/z1)
     gmp_printf("\nPonto Projetivo: (%Zd, %Zd)", R0.x, R0.z);
     
-    initPontoP(R1, coord_x, one);
-    double_ponto(R1, R1); // R1 = 2Pp
+    initPontoP(R1, R0.x, R0.z); // R1 = R0 = P
+    double_ponto(R1, R1); // R1 = 2P
     gmp_printf("\nPonto Projetivo Dobrado: (%Zd, %Zd)", R1.x, R1.z);
     
     //validacao_ponto(R1);
@@ -484,6 +505,22 @@ void multiplicacao_escalar(mpz_t &coord_x_afim, const mpz_t &k_rand, const mpz_t
             gmp_printf("\nk_bit: %Zd", k_bit);
             cout << "\nBIT: " << bit << endl;
 
+            // Swap condicional
+            swap_condicional(R0, R1, bit);
+
+            // R0 = 2R0 e adiciona a R1 = R0 + R1
+            double_ponto(R0, R0);
+            add_ponto(R1, R0, R1);
+
+            gmp_printf("\n\nResultado R0 DOUBLE**********\nx: %Zd \nz: %Zd", R0.x, R0.z);
+            gmp_printf("\n\nResultado R1 ADD++++++++++\nx: %Zd \nz: %Zd", R1.x, R1.z);
+
+            // Swap condicinal para restaurar a ordem original
+            swap_condicional(R0, R1, bit);
+
+
+
+        /*
             if (bit == 0)
             {
                 add_ponto(R1, R0, R1); // R1 = R0 + R1
@@ -505,6 +542,7 @@ void multiplicacao_escalar(mpz_t &coord_x_afim, const mpz_t &k_rand, const mpz_t
                 gmp_printf("\n\nResultado R1 DOUBLE**********\nx: %Zd \nz: %Zd", R1.x, R1.z);
                 //validacao_ponto(R1);
             }
+            */
         }
 
         clearPontoP(R1); // Limpa o ponto R1
@@ -512,9 +550,8 @@ void multiplicacao_escalar(mpz_t &coord_x_afim, const mpz_t &k_rand, const mpz_t
 
         cout << "\n\n________________________FIM Mult Escalar____________________________\n" << endl;
 
-        // Retorna o quociente da divisao de R0.x/R0.z
-        mpz_divexact(coord_x_afim, R0.x, R0.z);    
-        //return R0x_afim; // Retorna o resultado da multiplicação escalar
+        // Retorna coordenada afim x = R0.x/R0.z, necessário divisão modular
+        conv_coord_proj_to_afim(coord_x_afim, R0);
     }
 }
 
@@ -579,11 +616,6 @@ void gera_escalar_rand(mpz_t &k)
     mpz_clear(conv_seed);
     gmp_randclear(state);
 }
-
-// 7. Gera a CHAVE PUBLICA ultilizando a multiplicacao escalar da CHAVE PRIVADA com o Ponto base dado P_0
-//mpz_t gera_chave_pbl(mpz_t chave_prv, mpz_t P0x){ // pode fazer na main() apenas igualando o ponto
-//    return multiplicacao_escalar(chave_prv, P0x);
-//}
 
 // 8. Encripta a mensagem ultilizando a CHAVE PUBLICA
 void encriptar_mensagem(Ponto &msg_cod, mpz_t &chave_pbl, Ponto &C1, Ponto &C2){
@@ -726,14 +758,12 @@ int main(){
     // Gera a Chave Publica fornecendo a Chave Privada
     // pela multiplicacao escalar ultilizando a coordenada x do ponto inicial (x1)
     multiplicacao_escalar(chave_pbl, chave_prv, P_0.x);
-    gmp_printf("\n\nChave Publica x: % Zd", chave_pbl);
-
-/*
+    gmp_printf("\n\nChave Publica (x AFIM): % Zd", chave_pbl);
 
     // Encripta a mensagem ultilizando a Chave Publica
     encriptar_mensagem(msg_cod, chave_pbl, C1, C2);
-    gmp_printf("\n\nMensagem criptografada\nC1: x = % Zd | y = % Zd", C1.x, C1.y);
-    gmp_printf("\nC2: x = % Zd | y = % Zd", C2.x, C2.y);
+    gmp_printf("\n\nMensagem criptografada\nC1: x = % Zd\n    y = % Zd", C1.x, C1.y);
+    gmp_printf("\nC2: x = % Zd\n    y = % Zd", C2.x, C2.y);
 
     // Decripta a mensagem ultilizando a Chave Privada
     decriptar_mensagem(msg_dec, C1, C2, chave_prv);
@@ -741,8 +771,6 @@ int main(){
 
     // Decodifica a mensagem para string original
     decodifica_ponto_para_string(msg_dec);
-
-    */
 
     // Limpa variáveis para liberar memória
     // mpz_clears(h, b, NULL);
