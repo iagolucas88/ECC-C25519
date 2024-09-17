@@ -333,10 +333,10 @@ void add_ponto(P_projetivo &Pp3, P_projetivo &Q, P_projetivo &Ql)
         Considerando x1 = 9 e z1 = 1 (pode ser qualquer numero diferente de zero, o valor 1 simplifica os cálculos)
     ___________________________________________________________________________________________________*/
 
-    // Caso 1: Q = Q', entao X(Q - Q') = X(0) = 0 (ponto no infinito). Assim, z1 = 0
+    // Caso 1: Q = Q', entao X(Q - Q') = X(0) = 0 (ponto no infinito). Assim, z1 = 0, contradição
     if(mpz_cmpabs(Q.x, Ql.x) == 0 && mpz_cmpabs(Q.z, Ql.z) == 0)
     {
-        gmp_printf("\n\nQ = Q', logo X(Q - Q') = X(0) = 0\nPp3 = 0:(%Zd, %Zd)", Pp3.x, Pp3.z);
+        gmp_printf("\n\nQ = Q', logo X(Q - Q') = X(0) = 0\nCONTRADICAO: z1 = 0");
     }
     
     // Caso 2: Q = 0 (ponto no infinito), entao z = 0 e (x, x' e z') != 0, temos X(Q') = X(Q + Q')
@@ -455,6 +455,7 @@ void swap_condicional(P_projetivo &R0, P_projetivo &R1, int &bit_cond) {
     if (bit_cond) {
         mpz_swap(R0.x, R1.x);
         mpz_swap(R0.z, R1.z);
+        gmp_printf("\n\nSwap condicional: R0:(%Zd, %Zd)\nR1:(%Zd, %Zd)", R0.x, R0.z, R1.x, R1.z);
     }
 }
 
@@ -466,17 +467,25 @@ void multiplicacao_escalar(mpz_t &coord_x_afim, const mpz_t &k_rand, const mpz_t
     // Para não alterar o valor original de k_rand
     mpz_t k_var;
     mpz_init_set(k_var, k_rand);
-    //mpz_init(coord_x_afim);
-
+/* TESTE POIS AO INICIALIZAR ASSIM, ENTRA EM CONTRADICAO POIS R0 = R1 = P E NAO PODE SER IGUAL
     // Deve-se iniciar R0 = P e R1 = 2P 
     // Para garantir a simetricidade com swap condicional para evitar ataques de canal lateral garantindo o constant-time
     P_projetivo R0, R1;
     initPontoP(R0, coord_x, one);  // R0 = Pp = x1/z1 : (x1/z1, y1/z1)
-    gmp_printf("\nPonto Projetivo: (%Zd, %Zd)", R0.x, R0.z);
+    gmp_printf("\nR0 = P: (%Zd, %Zd)", R0.x, R0.z);
     
     initPontoP(R1, R0.x, R0.z); // R1 = R0 = P
     double_ponto(R1, R1); // R1 = 2P
-    gmp_printf("\nPonto Projetivo Dobrado: (%Zd, %Zd)", R1.x, R1.z);
+    gmp_printf("\nR1 = 2P: (%Zd, %Zd)", R1.x, R1.z);
+*/
+    // Deve-se iniciar R0 = (1, 0) e R1 = 2P 
+    // Para garantir a simetricidade com swap condicional para evitar ataques de canal lateral garantindo o constant-time
+    P_projetivo R0, R1;
+    initPontoP(R0, one, zero);  
+    gmp_printf("\nR0 = P: (%Zd, %Zd)", R0.x, R0.z);
+    
+    initPontoP(R1, P_0.x, one); // R1 = R0 = P
+    gmp_printf("\nR1 = P: (%Zd, %Zd)", R1.x, R1.z);
     
     //validacao_ponto(R1);
 
@@ -505,44 +514,18 @@ void multiplicacao_escalar(mpz_t &coord_x_afim, const mpz_t &k_rand, const mpz_t
             gmp_printf("\nk_bit: %Zd", k_bit);
             cout << "\nBIT: " << bit << endl;
 
-            // Swap condicional
+            // Swap condicional se bit = 1
             swap_condicional(R0, R1, bit);
 
             // R0 = 2R0 e adiciona a R1 = R0 + R1
             double_ponto(R0, R0);
-            add_ponto(R1, R0, R1);
-
             gmp_printf("\n\nResultado R0 DOUBLE**********\nx: %Zd \nz: %Zd", R0.x, R0.z);
+
+            add_ponto(R1, R0, R1); // ARRUMAR CASOS DE PONTOS NO INFINITO
             gmp_printf("\n\nResultado R1 ADD++++++++++\nx: %Zd \nz: %Zd", R1.x, R1.z);
 
             // Swap condicinal para restaurar a ordem original
             swap_condicional(R0, R1, bit);
-
-
-
-        /*
-            if (bit == 0)
-            {
-                add_ponto(R1, R0, R1); // R1 = R0 + R1
-                gmp_printf("\n\nResultado R1 ADD++++++++++\nx: %Zd \nz: %Zd", R1.x, R1.z);
-                //validacao_ponto(R1);
-
-                double_ponto(R0, R0); // R0 = 2*R0
-                gmp_printf("\n\nResultado R0 DOUBLE**********\nx: %Zd \nz: %Zd", R0.x, R0.z);
-                //validacao_ponto(R0);
-            } 
-            
-            else 
-            {
-                add_ponto(R0, R0, R1); // R0 = R0 + R1
-                gmp_printf("\n\nResultado R0 ADD++++++++++\nx: %Zd \nz: %Zd", R0.x, R0.z);
-                //validacao_ponto(R0);
-
-                double_ponto(R1, R1); // R1 = 2*R1
-                gmp_printf("\n\nResultado R1 DOUBLE**********\nx: %Zd \nz: %Zd", R1.x, R1.z);
-                //validacao_ponto(R1);
-            }
-            */
         }
 
         clearPontoP(R1); // Limpa o ponto R1
@@ -747,6 +730,8 @@ int main(){
     string_to_mpz(mensagem, msg_t_gmp);
     gmp_printf("\nMensagem em inteiro (GMP): %Zd \n", msg_t_gmp);
 
+    // TROCA DE CHAVES DIFFIE-HELLMAN ECDH 
+
     // Codifica a mensagem (inteiro) inserida para um ponto na curva eliptica C25519
     Ponto msg_cod = codifica_mensagem_para_ponto_da_c25519(msg_t_gmp);
     gmp_printf("\n\nMensagem Codificada\nx: % Zd\ny: % Zd", msg_cod.x, msg_cod.y);
@@ -758,7 +743,9 @@ int main(){
     // Gera a Chave Publica fornecendo a Chave Privada
     // pela multiplicacao escalar ultilizando a coordenada x do ponto inicial (x1)
     multiplicacao_escalar(chave_pbl, chave_prv, P_0.x);
-    gmp_printf("\n\nChave Publica (x AFIM): % Zd", chave_pbl);
+    gmp_printf("\n\nChave Publica (x = X/Z): % Zd", chave_pbl);
+
+    // ASSINATURA DIGITAL (ENCRYPT E DECRYPT) ECDSA
 
     // Encripta a mensagem ultilizando a Chave Publica
     encriptar_mensagem(msg_cod, chave_pbl, C1, C2);
