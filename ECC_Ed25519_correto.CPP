@@ -410,7 +410,10 @@ void double_ponto(P_projetivo &Pp2, P_projetivo &Q)
         
         // X(2Q) = x2/z2 e Q = (x/z, y)
 
-        // x2 = (x² - z²)² mod p       
+        // x2 = (x² - z²)² mod p
+        // z2 = 4*x*z*(x² + a*x*z + z²) mod p
+
+
         mpz_mul(var, Q.x, Q.x);          // x²
         mpz_mul(Pp2.x, Q.z, Q.z);        // z²
         mpz_sub(Pp2.x, var, Pp2.x);      // x² - z²
@@ -420,15 +423,133 @@ void double_ponto(P_projetivo &Pp2, P_projetivo &Q)
         mpz_mul(var, Q.x, Q.z);      // x*z
         mpz_mul(var1, var, a);       // a*x*z
         mpz_mul(Pp2.z, Q.x, Q.x);    // x²
+        gmp_printf("\nx²: %Zd\nx*z: %Zd\na*x*z: %Zd", Pp2.z, var, var1);
         mpz_add(Pp2.z, Pp2.z, var1); // x² + a*x*z
         mpz_mul(var1, Q.z, Q.z);     // z²
         mpz_add(Pp2.z, Pp2.z, var1); // x² + a*x*z + z²
         mpz_mul_ui(var, var, 4);     // 4*x*z
         mpz_mul(Pp2.z, Pp2.z, var);  // 4*x*z*(x² + a*x*z + z²)
+        gmp_printf("\n\nPonto dobrado s/ MOD:\nx2: %Zd\nz2: %Zd", Pp2.x, Pp2.z);
         mpz_mod(Pp2.z, Pp2.z, p);    // 4*x*z*(x² + a*x*z + z²) mod p
 
         //gmp_printf("\nPonto dobrado:\nx2: %Zd\nz2: %Zd\n", Pp2.x, Pp2.z);
     }
+}
+
+void double_add_ponto(P_projetivo &R0, P_projetivo &R1)
+{
+    /*_________________________________________________________________________________________________
+        FORMULAS RETIRADAS DO TEOREMA B2 DO APENDIX B (pag. 228)
+        Curve25519: New Diﬃe-Hellman Speed Records
+
+        Coordenadas: Afins (x, y) --> (X:Y:1) Projetiva
+                Projetiva (X:Y:Z) --> (x/z, y/z, 1) Afins
+
+        Apenas faz-se necessário ultilizar a coordenada x, assim:
+            X(Q + Q') = x3/z3 para todo Q e Q' pertencentes ao campo E(Fp²), onde
+            X(Q) = x/z, X(Q') = x'/z' e X(Q - Q') = x1/z1
+        Considerando x1 = 9 e z1 = 1 (pode ser qualquer numero diferente de zero, o valor 1 simplifica os cálculos)
+    ___________________________________________________________________________________________________*/
+
+    mpz_t A, B, C, D, E, F;
+    mpz_inits(A, B, C, D, E, F, NULL);
+
+    // Cálculos comuns de Duplicação
+    mpz_add(A, R0.x, R0.z); // A = x + z
+    mpz_sub(B, R0.x, R0.z); // B = x - z
+
+    // DOUBLE
+    // R0.x = x2 = (x² - z²)² mod p = (x - z)²*(x + z)² mod p
+    // R0.z = z2 = 4*x*z*(x² + a*x*z + z²) mod p = ((x + z)² - (x - z)²*((x + z)² + ((a-2)/4)*((x + z)² - (x - z)²))) mod p
+        
+    // Caso 1: z = 0, então x2 = x⁴ != 0 e z2 = 0, temos X(2Q) = 0 (ponto no infinito)
+    if (mpz_cmp(R0.z, zero) == 0) {
+        cout << "\nDOUBLE: R0.z = 0, X(2Q) = 0 (ponto no infinito)" << endl;
+        mpz_set(R0.x, one);
+        mpz_set(R0.z, zero);
+    }
+
+    // Caso 2: z != 0 e x = 0, entao x2 = z⁴ != 0 e z2 = 0, temos X(2Q) = 0 (ponto no infinito)
+    else if (mpz_cmp_ui(R0.x, 0) == 0) {
+        cout << "\nDOUBLE: R0.x = 0, X(2Q) = 0 (ponto no infinito)" << endl;
+        mpz_set(R0.x, one);
+        mpz_set(R0.z, zero);
+    }
+
+    // Caso 3: x != 0 e z != 0, entao Q = (x/z, y/z, 1) 'AFINS', temos X(2Q) = x2/z2
+    else {
+        // Duplicação de R0 cálculos comuns
+        mpz_mul(E, B, B);       // E = (x - z)²
+        mpz_mul(F, A, A);       // F = (x + z)²
+
+        // R0.x = x2 = (x - z)²*(x + z)² mod p
+        mpz_mul(R0.x, E, F);    // R0.x = (x - z)² * (x + z)²
+        mpz_mod(R0.x, R0.x, p); // R0.x = (x - z)² * (x + z)² mod p
+
+        // R0.z = z2 = ((x + z)² - (x - z)²*((x + z)² + ((a-2)/4)*((x + z)² - (x - z)²))) mod p
+        mpz_sub(R0.z, F, E);       // R0.z = (x + z)² - (x - z)²
+        mpz_mul(R1.x, a24, R0.z);  // R1.x = ((a + 2)/4)*((x + z)² - (x - z)²)  [ultiliza R1.x para economia de memória]
+        mpz_add(R1.x, F, R1.x);    // R1.x = (x + z)² + ((a + 2)/4)*((x + z)² - (x - z)²)
+        mpz_mul(R0.z, R0.z, R1.x); // R0.z = ((x + z)² - (x - z)²)*((x + z)² + ((a + 2)/4)*((x + z)² - (x - z)²))
+        mpz_mod(R0.z, R0.z, p);    // R0.z = ((x + z)² - (x - z)²)*((x + z)² + ((a + 2)/4)*((x + z)² - (x - z)²)) mod p
+
+        gmp_printf("\n\nR0:(%Zd, %Zd)", R0.x, R0.z);
+    }
+
+    // ADD
+    // R1.x = x3 = 4*z1(x*x' - z*z')² mod p = ((x - z)*(x' + z') + (x + z)*(x' + z'))²*z1 mod p
+    // R1.z = z3 = 4*x1(x*z' - z*x')² mod p = ((x - z)*(x' + z') - (x + z)*(x' + z'))²*x1 mod p
+
+    // Caso 1: Q = Q', logo X(Q - Q') = X(0) = 0 (ponto no infinito)
+    if (mpz_cmp(R0.x, R1.x) == 0 && mpz_cmp(R0.z, R1.z) == 0) {
+        cout << "\nADD: Q = Q', X(Q - Q') = 0 = R1 (ponto no infinito)" << endl;
+        mpz_set(R1.x, one);
+        mpz_set(R1.z, zero);
+    }
+
+    // Caso 2: Q = 0, logo X(Q') = X(Q + Q')
+    else if (mpz_cmp(R0.z, zero) == 0 && mpz_cmp(R0.x, zero) != 0 && mpz_cmp(R1.x, zero) != 0 && mpz_cmp(R1.z, zero) != 0) {
+        cout << "\nADD: Q = 0, X(Q') = X(Q + Q')" << endl;
+    }
+
+    // Caso 3: Q' = 0, logo X(Q) = X(Q + Q')
+    else if (mpz_cmp(R1.z, zero) == 0 && mpz_cmp(R1.x, zero) != 0 && mpz_cmp(R0.x, zero) != 0 && mpz_cmp(R0.z, zero) != 0) {
+        mpz_set(R1.x, R0.x);
+        mpz_set(R1.z, R0.z);
+        cout << "\nADD: Q' = 0, X(Q) = X(Q + Q'), R1 = R0" << endl;
+    }
+
+    // Caso 4: Q = -Q', logo X(0) = X(Q + Q') (ponto no infinito)
+    else if (mpz_cmp(R0.x, R1.x) == 0 && mpz_cmp(R0.z, R1.z) != 0) {
+        cout << "\nADD: Q = -Q', X(0) = X(Q + Q') (ponto no infinito)" << endl;
+        mpz_set(R1.x, one);
+        mpz_set(R1.z, zero);
+    }
+
+    // Caso geral: Q != Q' e Q != -Q', X(Q + Q') = x3/z3, z1 = 1 desconsidera nos calculos
+    else {         
+        // Cálculos comuns de Adição
+        mpz_add(C, R1.x, R1.z); // C = x' + z'
+        mpz_sub(D, R1.x, R1.z); // D = x' - z'
+        
+        // Adição de R1 cálculos comuns (P = (x1, z1) = (9, 1))
+        mpz_mul(E, B, C);       // E = (x - z)*(x' + z')
+        mpz_mul(F, A, D);       // F = (x + z)*(x' - z')
+
+        //R1.x = x3 = ((x - z)*(x' + z') + (x + z)*(x' + z'))²*z1 mod p 
+        mpz_add(R1.x, E, F);       // R1.x = (x - z)*(x' + z') + (x + z)*(x' + z')
+        mpz_mul(R1.x, R1.x, R1.x); // R1.x = ((x - z)*(x' + z') + (x + z)*(x' + z'))²
+        mpz_mod(R1.x, R1.x, p);    // R1.x = ((x - z)*(x' + z') + (x + z)*(x' + z'))² mod p
+
+        //R1.z = z3 = ((x - z)*(x' + z') - (x + z)*(x' + z'))²*x1 mod p
+        mpz_sub(R1.z, E, F);        // R1.z = (x - z)*(x' + z') - (x + z)*(x' + z')
+        mpz_mul(R1.z, R1.z, R1.z);  // R1.z = ((x - z)*(x' + z') - (x + z)*(x' + z'))²
+        mpz_mul(R1.z, R1.z, P_0.x); // R1.z = ((x - z)*(x' + z') - (x + z)*(x' + z'))²*x1
+        mpz_mod(R1.z, R1.z, p);     // R1.z = ((x - z)*(x' + z') - (x + z)*(x' + z'))²*x1 mod p
+
+        gmp_printf("\n\nR1:(%Zd, %Zd)", R1.x, R1.z);
+    }
+    mpz_clears(A, B, C, D, E, F, NULL);
 }
 
 void conv_coord_proj_to_afim(mpz_t &cood_afim, P_projetivo &Pp)
@@ -455,7 +576,7 @@ void swap_condicional(P_projetivo &R0, P_projetivo &R1, int &bit_cond) {
     if (bit_cond) {
         mpz_swap(R0.x, R1.x);
         mpz_swap(R0.z, R1.z);
-        gmp_printf("\n\nSwap condicional: R0:(%Zd, %Zd)\nR1:(%Zd, %Zd)", R0.x, R0.z, R1.x, R1.z);
+        gmp_printf("\n\nSwap condicional\nR0:(%Zd, %Zd)\nR1:(%Zd, %Zd)\n", R0.x, R0.z, R1.x, R1.z);
     }
 }
 
@@ -481,8 +602,8 @@ void multiplicacao_escalar(mpz_t &coord_x_afim, const mpz_t &k_rand, const mpz_t
     // Deve-se iniciar R0 = (1, 0) e R1 = 2P 
     // Para garantir a simetricidade com swap condicional para evitar ataques de canal lateral garantindo o constant-time
     P_projetivo R0, R1;
-    initPontoP(R0, one, zero);  
-    gmp_printf("\nR0 = P: (%Zd, %Zd)", R0.x, R0.z);
+    initPontoP(R0, one, zero);  // Ponto neutro em coodenadas projetivas (1, 0)
+    gmp_printf("\nR0 = O: (%Zd, %Zd)", R0.x, R0.z);
     
     initPontoP(R1, P_0.x, one); // R1 = R0 = P
     gmp_printf("\nR1 = P: (%Zd, %Zd)", R1.x, R1.z);
@@ -517,13 +638,18 @@ void multiplicacao_escalar(mpz_t &coord_x_afim, const mpz_t &k_rand, const mpz_t
             // Swap condicional se bit = 1
             swap_condicional(R0, R1, bit);
 
+            double_add_ponto(R0, R1);
+
+    /*
+            cout << "\n\nR0 DOUBLE" << endl;
             // R0 = 2R0 e adiciona a R1 = R0 + R1
             double_ponto(R0, R0);
-            gmp_printf("\n\nResultado R0 DOUBLE**********\nx: %Zd \nz: %Zd", R0.x, R0.z);
+            gmp_printf("\nResultado R0 DOUBLE**********\nx: %Zd \nz: %Zd", R0.x, R0.z);
 
+            cout << "\n\nR1 ADD" << endl;
             add_ponto(R1, R0, R1); // ARRUMAR CASOS DE PONTOS NO INFINITO
-            gmp_printf("\n\nResultado R1 ADD++++++++++\nx: %Zd \nz: %Zd", R1.x, R1.z);
-
+            gmp_printf("\nResultado R1 ADD++++++++++\nx: %Zd \nz: %Zd", R1.x, R1.z);
+*/
             // Swap condicinal para restaurar a ordem original
             swap_condicional(R0, R1, bit);
         }
@@ -602,8 +728,7 @@ void gera_escalar_rand(mpz_t &k)
 
 // 8. Encripta a mensagem ultilizando a CHAVE PUBLICA
 void encriptar_mensagem(Ponto &msg_cod, mpz_t &chave_pbl, Ponto &C1, Ponto &C2){
-    cout << "\n\n____________________________ENCRYPT________________________________\n"
-         << endl; // REMOVER
+    cout << "\n\n____________________________ENCRYPT________________________________\n" << endl; // REMOVER
 
     mpz_t chave_prv_efemera;
     mpz_init(chave_prv_efemera);
@@ -714,12 +839,12 @@ int main(){
 
     // Valores iniciados da Curva25519
     cout << "\n____________________________PARAMETROS CURVA 25519____________________________" << endl;
-    gmp_printf("\nP  = % Zd ", p);
-    gmp_printf("\nA  = % Zd ", a);
+    gmp_printf("\np  = % Zd ", p);
+    gmp_printf("\na  = % Zd ", a);
     // gmp_printf ("\nB = % Zd ", b);
-    gmp_printf("\nN  = % Zd ", n);
-    gmp_printf("\nX0 = % Zd ", P_0x);
-    gmp_printf("\nY0 = % Zd ", P_0y);
+    gmp_printf("\nn  = % Zd ", n);
+    gmp_printf("\nx0 = % Zd ", P_0x);
+    gmp_printf("\ny0 = % Zd ", P_0y);
     cout << "\n______________________________________________________________________________" << endl;
 
     string mensagem;
@@ -730,7 +855,7 @@ int main(){
     string_to_mpz(mensagem, msg_t_gmp);
     gmp_printf("\nMensagem em inteiro (GMP): %Zd \n", msg_t_gmp);
 
-    // TROCA DE CHAVES DIFFIE-HELLMAN ECDH 
+    // TROCA DE CHAVES DIFFIE-HELLMAN  
 
     // Codifica a mensagem (inteiro) inserida para um ponto na curva eliptica C25519
     Ponto msg_cod = codifica_mensagem_para_ponto_da_c25519(msg_t_gmp);
@@ -745,7 +870,7 @@ int main(){
     multiplicacao_escalar(chave_pbl, chave_prv, P_0.x);
     gmp_printf("\n\nChave Publica (x = X/Z): % Zd", chave_pbl);
 
-    // ASSINATURA DIGITAL (ENCRYPT E DECRYPT) ECDSA
+    // ASSINATURA DIGITAL (ENCRYPT E DECRYPT) ECDH
 
     // Encripta a mensagem ultilizando a Chave Publica
     encriptar_mensagem(msg_cod, chave_pbl, C1, C2);
