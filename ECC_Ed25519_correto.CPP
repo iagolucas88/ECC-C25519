@@ -727,57 +727,65 @@ void gera_escalar_rand(mpz_t &k)
 }
 
 // 8. Encripta a mensagem ultilizando a CHAVE PUBLICA
-void encriptar_mensagem(Ponto &msg_cod, mpz_t &chave_pbl, Ponto &C1, Ponto &C2){
+void encriptar_mensagem(Ponto &msg_cod, mpz_t &chave_pbl, mpz_t &C1, mpz_t &C2){
     cout << "\n\n____________________________ENCRYPT________________________________\n" << endl; // REMOVER
 
-    mpz_t chave_prv_efemera;
-    mpz_init(chave_prv_efemera);
+    mpz_t chave_prv_efemera, chv_compartilhada;
+    mpz_inits(chave_prv_efemera, chv_compartilhada, NULL);
+
     gera_escalar_rand(chave_prv_efemera); // Gera uma chave privada efemera
 
-    Ponto ponto_mult_chv_pbl;
-    initPonto(ponto_mult_chv_pbl);
+    //Ponto chv_compartilhada;
+    //initPonto(chv_compartilhada);
 
     gmp_printf("\nChave Privada Efemera: %Zd", chave_prv_efemera);
 
     // C1 = k*P_0.x
-    multiplicacao_escalar(C1.x, chave_prv_efemera, P_0.x);
-    C1 = codifica_mensagem_para_ponto_da_c25519(C1.x); // Encontra a coordenada y de C1 = (x, y)
-
-    //teste para retornar o valor de k, pois está zerando.
-    //mpz_set_ui(chave_prv_efemera, 11);  // k = 11
+    multiplicacao_escalar(C1, chave_prv_efemera, P_0.x);
+    //C1 = codifica_mensagem_para_ponto_da_c25519(C1.x); // Encontra a coordenada y de C1 = (x, y)
 
     // C2 = Pm + k*Pb
-    multiplicacao_escalar(ponto_mult_chv_pbl.x, chave_prv_efemera, chave_pbl); // k*Pb.x   
-    ponto_mult_chv_pbl = codifica_mensagem_para_ponto_da_c25519(ponto_mult_chv_pbl.x); // Encontra a coordenada y (k*Pb)
-    //add_ponto(C2, msg_cod, ponto_mult_chv_pbl);                            // C2 = Pm + k*Pb
+    multiplicacao_escalar(chv_compartilhada, chave_prv_efemera, chave_pbl); // k*Pb.x   
+    //chv_compartilhada = codifica_mensagem_para_ponto_da_c25519(chv_compartilhada); // Encontra a coordenada y (k*Pb)
+    //add_ponto(C2, msg_cod, chv_compartilhada);                            // C2 = Pm + k*Pb
 
+    mpz_xor(C2, msg_cod.x, chv_compartilhada); // C2 = Pm XOR k*Pb
+/*
     // CONVERTE PARA PONTO PROJETIVO (TEMPORARIO)
-    P_projetivo C2_p, msg_cod_p, ponto_mult_chv_pbl_p;
+    P_projetivo C2_p, msg_cod_p, chv_compartilhada_p;
     initPontoP(C2_p, C2.x, C2.y);
     initPontoP(msg_cod_p, msg_cod.x, msg_cod.y);
-    initPontoP(ponto_mult_chv_pbl_p, ponto_mult_chv_pbl.x, ponto_mult_chv_pbl.y);
+    initPontoP(chv_compartilhada_p, chv_compartilhada.x, chv_compartilhada.y);
     
-    add_ponto(C2_p, msg_cod_p, ponto_mult_chv_pbl_p);                            // C2 = Pm + k*Pb
-    mpz_set(C2.x, C2_p.x);
-    mpz_set(C2.y, C2_p.z);
-    //******************************************** */
-    //gmp_printf("\n\nCifras DEPOIS\n C1: x: %Zd | y: %Zd", C1.x, C2.y);
-    //gmp_printf("\n C2: x: %Zd | y: %Zd", C2.x, C2.y);
-
-    mpz_clear(chave_prv_efemera);
-    clearPonto(ponto_mult_chv_pbl);
+    add_ponto(C2_p, msg_cod_p, chv_compartilhada_p);                            // C2 = Pm + k*Pb
+    mpz_set(C2, C2_p.x);
+    //mpz_set(C2.y, C2_p.z);
+*/
+    mpz_clears(chave_prv_efemera, chv_compartilhada, NULL);
+    //clearPonto(chv_compartilhada);
     cout << "\n\n________________________FIM ENCRYPT________________________________\n" << endl; // REMOVER
 }
 
 // 9. Decripta a mensagem ultilizando a CHAVE PRIVADA
-void decriptar_mensagem(mpz_t &msg_dec, Ponto &C1, Ponto &C2, mpz_t &chave_prv){
+void decriptar_mensagem(mpz_t &msg_dec, mpz_t &C1, mpz_t &C2, mpz_t &chave_prv){
     // cout << "\n\n____________________________DECRYPT________________________________\n" << endl; // REMOVER
 
-    Ponto P_msg, chave_prv_mult_C1;
-    initPonto(P_msg, zero, zero);
-    initPonto(chave_prv_mult_C1, zero, zero);
+    mpz_t chv_compartilhada;
+    mpz_init(chv_compartilhada);
 
-    multiplicacao_escalar(chave_prv_mult_C1.x, chave_prv, C1.x); // k*C1.x
+    multiplicacao_escalar(chv_compartilhada, chave_prv, C1); // k*C1.x
+
+    mpz_xor(msg_dec, C2, chv_compartilhada); // Pm = C2 XOR k*C1
+
+    mpz_clear(chv_compartilhada);
+
+    // DIVIDIR POR 100 PARA OBTER A MENSAGEM ORIGINAL
+/*
+    //Ponto P_msg, chave_prv_mult_C1;
+    //initPonto(P_msg, zero, zero);
+    //initPonto(chave_prv_mult_C1, zero, zero);
+
+    multiplicacao_escalar(chave_prv_mult_C1.x, chave_prv, C1); // k*C1.x
     chave_prv_mult_C1 = codifica_mensagem_para_ponto_da_c25519(chave_prv_mult_C1.x); // Encontra a coordenada y (k*C1)
     mpz_neg(chave_prv_mult_C1.y, chave_prv_mult_C1.y); // -k*C1 = (x, -y)
     //add_ponto(P_msg, C2, chave_prv_mult_C1); // P_msg = C2 + k*C1
@@ -791,11 +799,13 @@ void decriptar_mensagem(mpz_t &msg_dec, Ponto &C1, Ponto &C2, mpz_t &chave_prv){
 
     add_ponto(P_msg_p, C2_p, chave_prv_mult_C1_p); // P_msg = C2 + k*C1
     mpz_set(msg_dec, P_msg_p.x); // msg_dec = x
-    // *****************************************************
+    
+    // DIVIDIR POR 100 PARA OBTER A MENSAGEM ORIGINAL
 
     // cout << "\n___________________________FIM DECRYPT____________________________\n" << endl; // REMOVER
     clearPonto(P_msg);
     clearPonto(chave_prv_mult_C1);
+    */
 }
 
 // 10. Decodifica a mensagem para string
@@ -830,12 +840,12 @@ int main(){
     inic_parametros_c25519(); // Inicializa os parametros da curva eliptica C25519
 
     // Inicia como zero para evitar lixo de memória
-    mpz_t msg_t_gmp, chave_prv, chave_pbl, k, msg_dec;
-    mpz_inits(msg_t_gmp, chave_prv, chave_pbl, k, msg_dec, NULL);
+    mpz_t msg_t_gmp, chave_prv, chave_pbl, k, msg_dec, C1, C2;
+    mpz_inits(msg_t_gmp, chave_prv, chave_pbl, k, msg_dec, C1, C2, NULL);
 
-    Ponto C1, C2;
-    initPonto(C1, zero, zero);
-    initPonto(C2, zero, zero);
+    //Ponto C1, C2;
+    //initPonto(C1, zero, zero);
+    //initPonto(C2, zero, zero);
 
     // Valores iniciados da Curva25519
     cout << "\n____________________________PARAMETROS CURVA 25519____________________________" << endl;
@@ -874,8 +884,11 @@ int main(){
 
     // Encripta a mensagem ultilizando a Chave Publica
     encriptar_mensagem(msg_cod, chave_pbl, C1, C2);
-    gmp_printf("\n\nMensagem criptografada\nC1: x = % Zd\n    y = % Zd", C1.x, C1.y);
-    gmp_printf("\nC2: x = % Zd\n    y = % Zd", C2.x, C2.y);
+    //gmp_printf("\n\nMensagem criptografada\nC1: x = % Zd\n    y = % Zd", C1.x, C1.y);
+    //gmp_printf("\nC2: x = % Zd\n    y = % Zd", C2.x, C2.y);
+    gmp_printf("\n\nMensagem criptografada\nC1: Zd", C1);
+    gmp_printf("\nC2: Zd", C2);
+
 
     // Decripta a mensagem ultilizando a Chave Privada
     decriptar_mensagem(msg_dec, C1, C2, chave_prv);
@@ -886,7 +899,7 @@ int main(){
 
     // Limpa variáveis para liberar memória
     // mpz_clears(h, b, NULL);
-    mpz_clears(p, a, n, P_0x, P_0y, msg_t_gmp, chave_prv, k, chave_pbl, msg_dec, NULL);
+    mpz_clears(p, a, n, P_0x, P_0y, msg_t_gmp, chave_prv, k, chave_pbl, msg_dec, C1, C2, NULL);
     cout << endl << endl;
     
     return 0;
