@@ -493,7 +493,7 @@ void double_add_ponto(P_projetivo &R0, P_projetivo &R1)
         mpz_mul(R0.z, R0.z, R1.x); // R0.z = ((x + z)² - (x - z)²)*((x + z)² + ((a + 2)/4)*((x + z)² - (x - z)²))
         mpz_mod(R0.z, R0.z, p);    // R0.z = ((x + z)² - (x - z)²)*((x + z)² + ((a + 2)/4)*((x + z)² - (x - z)²)) mod p
 
-        gmp_printf("\n\nR0:(%Zd, %Zd)", R0.x, R0.z);
+        //gmp_printf("\n\nR0:(%Zd, %Zd)", R0.x, R0.z);
     }
 
     // ADD
@@ -502,26 +502,26 @@ void double_add_ponto(P_projetivo &R0, P_projetivo &R1)
 
     // Caso 1: Q = Q', logo X(Q - Q') = X(0) = 0 (ponto no infinito)
     if (mpz_cmp(R0.x, R1.x) == 0 && mpz_cmp(R0.z, R1.z) == 0) {
-        cout << "\nADD: Q = Q', X(Q - Q') = 0 = R1 (ponto no infinito)" << endl;
+        //cout << "\nADD: Q = Q', X(Q - Q') = 0 = R1 (ponto no infinito)" << endl;
         mpz_set(R1.x, one);
         mpz_set(R1.z, zero);
     }
 
     // Caso 2: Q = 0, logo X(Q') = X(Q + Q')
     else if (mpz_cmp(R0.z, zero) == 0 && mpz_cmp(R0.x, zero) != 0 && mpz_cmp(R1.x, zero) != 0 && mpz_cmp(R1.z, zero) != 0) {
-        cout << "\nADD: Q = 0, X(Q') = X(Q + Q')" << endl;
+        //cout << "\nADD: Q = 0, X(Q') = X(Q + Q')" << endl;
     }
 
     // Caso 3: Q' = 0, logo X(Q) = X(Q + Q')
     else if (mpz_cmp(R1.z, zero) == 0 && mpz_cmp(R1.x, zero) != 0 && mpz_cmp(R0.x, zero) != 0 && mpz_cmp(R0.z, zero) != 0) {
         mpz_set(R1.x, R0.x);
         mpz_set(R1.z, R0.z);
-        cout << "\nADD: Q' = 0, X(Q) = X(Q + Q'), R1 = R0" << endl;
+        //cout << "\nADD: Q' = 0, X(Q) = X(Q + Q'), R1 = R0" << endl;
     }
 
     // Caso 4: Q = -Q', logo X(0) = X(Q + Q') (ponto no infinito)
     else if (mpz_cmp(R0.x, R1.x) == 0 && mpz_cmp(R0.z, R1.z) != 0) {
-        cout << "\nADD: Q = -Q', X(0) = X(Q + Q') (ponto no infinito)" << endl;
+        //cout << "\nADD: Q = -Q', X(0) = X(Q + Q') (ponto no infinito)" << endl;
         mpz_set(R1.x, one);
         mpz_set(R1.z, zero);
     }
@@ -547,7 +547,7 @@ void double_add_ponto(P_projetivo &R0, P_projetivo &R1)
         mpz_mul(R1.z, R1.z, P_0.x); // R1.z = ((x - z)*(x' + z') - (x + z)*(x' + z'))²*x1
         mpz_mod(R1.z, R1.z, p);     // R1.z = ((x - z)*(x' + z') - (x + z)*(x' + z'))²*x1 mod p
 
-        gmp_printf("\n\nR1:(%Zd, %Zd)", R1.x, R1.z);
+        //gmp_printf("\n\nR1:(%Zd, %Zd)", R1.x, R1.z);
     }
     mpz_clears(A, B, C, D, E, F, NULL);
 }
@@ -576,7 +576,7 @@ void swap_condicional(P_projetivo &R0, P_projetivo &R1, int &bit_cond) {
     if (bit_cond) {
         mpz_swap(R0.x, R1.x);
         mpz_swap(R0.z, R1.z);
-        gmp_printf("\n\nSwap condicional\nR0:(%Zd, %Zd)\nR1:(%Zd, %Zd)\n", R0.x, R0.z, R1.x, R1.z);
+        //gmp_printf("\n\nSwap condicional\nR0:(%Zd, %Zd)\nR1:(%Zd, %Zd)\n", R0.x, R0.z, R1.x, R1.z);
     }
 }
 
@@ -631,9 +631,9 @@ void multiplicacao_escalar(mpz_t &coord_x_afim, const mpz_t &k_rand, const mpz_t
         {
             int bit = mpz_tstbit(k_var, mpz_get_ui(tam)-1);
             
-            gmp_printf("\n\ntam: %Zd", tam);
-            gmp_printf("\nk_bit: %Zd", k_bit);
-            cout << "\nBIT: " << bit << endl;
+            //gmp_printf("\n\ntam: %Zd", tam);
+            //gmp_printf("\nk_bit: %Zd", k_bit);
+            //cout << "\nBIT: " << bit << endl;
 
             // Swap condicional se bit = 1
             swap_condicional(R0, R1, bit);
@@ -668,7 +668,7 @@ void multiplicacao_escalar(mpz_t &coord_x_afim, const mpz_t &k_rand, const mpz_t
 void gera_escalar_rand(mpz_t &k)
 {
     // Zera a chave privada
-    mpz_init_set(k, zero); // REVER SE EH POSSIVEL INICIALIZAR A CADA CHAMADA
+    //mpz_init_set(k, zero); // REVER SE EH POSSIVEL INICIALIZAR A CADA CHAMADA
 
     // ________________________INICIO GERAR SEMENTE________________________
     // Gera a semente sem bloqueio, diferente do /dev/random que pode bloquear se nao houver entropia suficiente
@@ -717,13 +717,21 @@ void gera_escalar_rand(mpz_t &k)
     do {mpz_urandomm(k, state, n);
     } while(mpz_cmp_ui(k, 1) <= 0 || mpz_even_p(k) != 0); // Enquanto k <= 1 ou k é par
 
-    mpz_set_ui(k, 11); // k = 11
+    //mpz_set_str(k, "542345678900997876763333233232323235445646546456456456476456755444", 10); // k = 11
 
-    //gmp_printf("\nEscalar randomico (k): % Zd ", k);
+    gmp_printf("\nEscalar randomico (k): % Zd ", k);
 
     // Limpa as memorias
     mpz_clear(conv_seed);
     gmp_randclear(state);
+}
+void hash_test(mpz_t &result, const mpz_t &input) {
+    // Função de hash simples usando GMP
+    mpz_t temp;
+    mpz_init(temp);
+    mpz_mul(temp, input, input); // Exemplo simples de hash: quadrado do valor
+    mpz_add_ui(result, temp, 12345); // Adiciona um valor constante para mais complexidade
+    mpz_clear(temp);
 }
 
 // 8. Encripta a mensagem ultilizando a CHAVE PUBLICA
@@ -749,7 +757,11 @@ void encriptar_mensagem(Ponto &msg_cod, mpz_t &chave_pbl, mpz_t &C1, mpz_t &C2){
     //chv_compartilhada = codifica_mensagem_para_ponto_da_c25519(chv_compartilhada); // Encontra a coordenada y (k*Pb)
     //add_ponto(C2, msg_cod, chv_compartilhada);                            // C2 = Pm + k*Pb
 
-    mpz_xor(C2, msg_cod.x, chv_compartilhada); // C2 = Pm XOR k*Pb
+    mpz_t chave_simetrica;
+    mpz_init(chave_simetrica);
+    hash_test(chave_simetrica, chv_compartilhada);
+
+    mpz_xor(C2, msg_cod.x, chave_simetrica); // C2 = Pm XOR k*Pb
 /*
     // CONVERTE PARA PONTO PROJETIVO (TEMPORARIO)
     P_projetivo C2_p, msg_cod_p, chv_compartilhada_p;
@@ -775,7 +787,11 @@ void decriptar_mensagem(mpz_t &msg_dec, mpz_t &C1, mpz_t &C2, mpz_t &chave_prv){
 
     multiplicacao_escalar(chv_compartilhada, chave_prv, C1); // k*C1.x
 
-    mpz_xor(msg_dec, C2, chv_compartilhada); // Pm = C2 XOR k*C1
+    mpz_t chave_simetrica;
+    mpz_init(chave_simetrica);
+    hash_test(chave_simetrica, chv_compartilhada);
+
+    mpz_xor(msg_dec, C2, chave_simetrica); // Pm = C2 XOR k*C1
 
     mpz_clear(chv_compartilhada);
 
@@ -886,8 +902,8 @@ int main(){
     encriptar_mensagem(msg_cod, chave_pbl, C1, C2);
     //gmp_printf("\n\nMensagem criptografada\nC1: x = % Zd\n    y = % Zd", C1.x, C1.y);
     //gmp_printf("\nC2: x = % Zd\n    y = % Zd", C2.x, C2.y);
-    gmp_printf("\n\nMensagem criptografada\nC1: Zd", C1);
-    gmp_printf("\nC2: Zd", C2);
+    gmp_printf("\n\nMensagem criptografada\nC1: %Zd", C1);
+    gmp_printf("\nC2: %Zd", C2);
 
 
     // Decripta a mensagem ultilizando a Chave Privada
