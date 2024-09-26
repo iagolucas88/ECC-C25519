@@ -231,7 +231,7 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
     // Expoente para o Teste de Euler: exp_euler = (p-1)/2
     mpz_sub_ui(exp_euler, p, 1);
     mpz_cdiv_q_ui(exp_euler, exp_euler, 2);
-    gmp_printf("\nExpoente do Teste de Euler: %Zd", exp_euler); // CALCULAR RESULTADO E INSERIR NOS PARAMETROS INICIAIS
+    //gmp_printf("\nExpoente do Teste de Euler: %Zd", exp_euler); // CALCULAR RESULTADO E INSERIR NOS PARAMETROS INICIAIS
 
     while(true){
         // y² = x³ + a*x² + x  mod p
@@ -242,7 +242,7 @@ Ponto codifica_mensagem_para_ponto_da_c25519(mpz_t msg){
         mpz_add(y_msg_squared, y_msg_squared, var); // x³ + a*x² + x
         mpz_mod(y_msg_squared, y_msg_squared, p);   // y² = x³ + a*x² + x  mod p
 
-        gmp_printf("\n\ny²: %Zd", y_msg_squared);
+        //gmp_printf("\n\ny²: %Zd", y_msg_squared);
 
         // Teste de Euler: verifica se y² é um resíduo quadrático
         mpz_powm(y_msg, y_msg_squared, exp_euler, p); // y^2*[(p-1)/2]  mod p
@@ -552,8 +552,7 @@ void double_add_ponto(P_projetivo &R0, P_projetivo &R1)
     mpz_clears(A, B, C, D, E, F, NULL);
 }
 
-void conv_coord_proj_to_afim(mpz_t &cood_afim, P_projetivo &Pp)
-{
+void conv_coord_proj_to_afim(mpz_t &cood_afim, P_projetivo &Pp) {
     mpz_t inv;
     mpz_init(inv);
 
@@ -718,7 +717,7 @@ void gera_escalar_rand(mpz_t &k)
     } while(mpz_cmp_ui(k, 1) <= 0 || mpz_even_p(k) != 0); // Enquanto k <= 1 ou k é par
 
     //mpz_set_str(k, "542345678900997876763333233232323235445646546456456456476456755444", 10); // k = 11
-
+    //mpz_set_ui(k, 11);
     gmp_printf("\nEscalar randomico (k): % Zd ", k);
 
     // Limpa as memorias
@@ -734,94 +733,82 @@ void hash_test(mpz_t &result, const mpz_t &input) {
     mpz_clear(temp);
 }
 
+void hmac(mpz_t &result, const mpz_t &key, const mpz_t &data) {
+    // Implementação simples de HMAC usando GMP
+    mpz_t temp;
+    mpz_init(temp);
+    mpz_xor(temp, key, data); // Exemplo simples de HMAC: XOR do valor
+    mpz_add_ui(result, temp, 12345); // Adiciona um valor constante para mais complexidade
+    mpz_clear(temp);
+}
+
+// PODE RETIRAR COLOCANTO DIRETO O hmac
+void hkdf_extract(mpz_t &prk, const mpz_t &salt, const mpz_t &ikm) {
+    // HKDF Extract: PRK = HMAC(salt, IKM)
+    hmac(prk, salt, ikm);
+}
+
+void hkdf_expand(mpz_t &okm, const mpz_t &prk, const mpz_t &info, size_t length) {
+    // HKDF Expand: OKM = HMAC-Expand(PRK, info, length)
+    mpz_t temp;
+    mpz_init(temp);
+    hmac(temp, prk, info);
+    mpz_mod_2exp(okm, temp, length * 8); // Trunca para o comprimento desejado
+    mpz_clear(temp);
+}
+
 // 8. Encripta a mensagem ultilizando a CHAVE PUBLICA
-void encriptar_mensagem(Ponto &msg_cod, mpz_t &chave_pbl, mpz_t &C1, mpz_t &C2){
+void encriptar_mensagem(Ponto &msg_cod, mpz_t &chave_pbl, mpz_t &C1, mpz_t &C2, mpz_t &chave_prv_efemera){
     cout << "\n\n____________________________ENCRYPT________________________________\n" << endl; // REMOVER
 
-    mpz_t chave_prv_efemera, chv_compartilhada;
-    mpz_inits(chave_prv_efemera, chv_compartilhada, NULL);
+    //mpz_t chave_prv_efemera, chv_compartilhada, chave_simetrica;
+    //mpz_inits(chave_prv_efemera, chv_compartilhada, chave_simetrica, NULL);
+    mpz_t chv_compartilhada, chave_simetrica;
+    mpz_inits(chv_compartilhada, chave_simetrica, NULL);
 
-    gera_escalar_rand(chave_prv_efemera); // Gera uma chave privada efemera
-
-    //Ponto chv_compartilhada;
-    //initPonto(chv_compartilhada);
-
-    gmp_printf("\nChave Privada Efemera: %Zd", chave_prv_efemera);
+    //gera_escalar_rand(chave_prv_efemera); // Gera uma chave privada efemera
+    //mpz_mul_ui(chave_prv_efemera, chave_prv_efemera, 23);
+    //gmp_printf("\nChave Privada Efemera: %Zd", chave_prv_efemera);
+    //mpz_set(chave_prv_efemera, chave_prv_efemera);
 
     // C1 = k*P_0.x
     multiplicacao_escalar(C1, chave_prv_efemera, P_0.x);
-    //C1 = codifica_mensagem_para_ponto_da_c25519(C1.x); // Encontra a coordenada y de C1 = (x, y)
 
-    // C2 = Pm + k*Pb
     multiplicacao_escalar(chv_compartilhada, chave_prv_efemera, chave_pbl); // k*Pb.x   
-    //chv_compartilhada = codifica_mensagem_para_ponto_da_c25519(chv_compartilhada); // Encontra a coordenada y (k*Pb)
-    //add_ponto(C2, msg_cod, chv_compartilhada);                            // C2 = Pm + k*Pb
 
-    mpz_t chave_simetrica;
-    mpz_init(chave_simetrica);
-    hash_test(chave_simetrica, chv_compartilhada);
+    //hash_test(chave_simetrica, chv_compartilhada);
+    mpz_t prk;
+    mpz_init(prk);
+    hkdf_extract(prk, chave_prv_efemera, chv_compartilhada);
+    hkdf_expand(chave_simetrica, prk, chave_prv_efemera, mpz_sizeinbase(msg_cod.x, 2) / 8); // Tamanho da mensagem em bytes
 
     mpz_xor(C2, msg_cod.x, chave_simetrica); // C2 = Pm XOR k*Pb
-/*
-    // CONVERTE PARA PONTO PROJETIVO (TEMPORARIO)
-    P_projetivo C2_p, msg_cod_p, chv_compartilhada_p;
-    initPontoP(C2_p, C2.x, C2.y);
-    initPontoP(msg_cod_p, msg_cod.x, msg_cod.y);
-    initPontoP(chv_compartilhada_p, chv_compartilhada.x, chv_compartilhada.y);
-    
-    add_ponto(C2_p, msg_cod_p, chv_compartilhada_p);                            // C2 = Pm + k*Pb
-    mpz_set(C2, C2_p.x);
-    //mpz_set(C2.y, C2_p.z);
-*/
-    mpz_clears(chave_prv_efemera, chv_compartilhada, NULL);
-    //clearPonto(chv_compartilhada);
+
+    mpz_clears(chv_compartilhada, chave_simetrica, NULL);
     cout << "\n\n________________________FIM ENCRYPT________________________________\n" << endl; // REMOVER
 }
 
 // 9. Decripta a mensagem ultilizando a CHAVE PRIVADA
 void decriptar_mensagem(mpz_t &msg_dec, mpz_t &C1, mpz_t &C2, mpz_t &chave_prv){
-    // cout << "\n\n____________________________DECRYPT________________________________\n" << endl; // REMOVER
+    cout << "\n\n____________________________DECRYPT________________________________\n" << endl; // REMOVER
 
-    mpz_t chv_compartilhada;
-    mpz_init(chv_compartilhada);
+    mpz_t chv_compartilhada, chave_simetrica;
+    mpz_inits(chv_compartilhada, chave_simetrica, NULL);
 
     multiplicacao_escalar(chv_compartilhada, chave_prv, C1); // k*C1.x
 
-    mpz_t chave_simetrica;
-    mpz_init(chave_simetrica);
-    hash_test(chave_simetrica, chv_compartilhada);
+    //hash_test(chave_simetrica, chv_compartilhada);
+    // Deriva uma chave de criptografia simétrica a partir da chave compartilhada usando HKDF
+    mpz_t prk;
+    mpz_init(prk);
+    hkdf_extract(prk, chave_prv, chv_compartilhada);
+    hkdf_expand(chave_simetrica, prk, chave_prv, mpz_sizeinbase(C2, 2) / 8); // Tamanho da mensagem em bytes
 
     mpz_xor(msg_dec, C2, chave_simetrica); // Pm = C2 XOR k*C1
 
-    mpz_clear(chv_compartilhada);
-
+    mpz_clears(chv_compartilhada, chave_simetrica, NULL);
     // DIVIDIR POR 100 PARA OBTER A MENSAGEM ORIGINAL
-/*
-    //Ponto P_msg, chave_prv_mult_C1;
-    //initPonto(P_msg, zero, zero);
-    //initPonto(chave_prv_mult_C1, zero, zero);
-
-    multiplicacao_escalar(chave_prv_mult_C1.x, chave_prv, C1); // k*C1.x
-    chave_prv_mult_C1 = codifica_mensagem_para_ponto_da_c25519(chave_prv_mult_C1.x); // Encontra a coordenada y (k*C1)
-    mpz_neg(chave_prv_mult_C1.y, chave_prv_mult_C1.y); // -k*C1 = (x, -y)
-    //add_ponto(P_msg, C2, chave_prv_mult_C1); // P_msg = C2 + k*C1
-    //mpz_set(msg_dec, P_msg.x); // msg_dec = x
-
-    // CONVERTE PARA PONTO PROJETIVO (TEMPORARIO)
-    P_projetivo P_msg_p, C2_p, chave_prv_mult_C1_p;
-    initPontoP(P_msg_p, P_msg.x, P_msg.y);
-    initPontoP(C2_p, C2.x, C2.y);
-    initPontoP(chave_prv_mult_C1_p, chave_prv_mult_C1.x, chave_prv_mult_C1.y);
-
-    add_ponto(P_msg_p, C2_p, chave_prv_mult_C1_p); // P_msg = C2 + k*C1
-    mpz_set(msg_dec, P_msg_p.x); // msg_dec = x
-    
-    // DIVIDIR POR 100 PARA OBTER A MENSAGEM ORIGINAL
-
-    // cout << "\n___________________________FIM DECRYPT____________________________\n" << endl; // REMOVER
-    clearPonto(P_msg);
-    clearPonto(chave_prv_mult_C1);
-    */
+    cout << "\n___________________________FIM DECRYPT____________________________\n" << endl; // REMOVER
 }
 
 // 10. Decodifica a mensagem para string
@@ -859,10 +846,6 @@ int main(){
     mpz_t msg_t_gmp, chave_prv, chave_pbl, k, msg_dec, C1, C2;
     mpz_inits(msg_t_gmp, chave_prv, chave_pbl, k, msg_dec, C1, C2, NULL);
 
-    //Ponto C1, C2;
-    //initPonto(C1, zero, zero);
-    //initPonto(C2, zero, zero);
-
     // Valores iniciados da Curva25519
     cout << "\n____________________________PARAMETROS CURVA 25519____________________________" << endl;
     gmp_printf("\np  = % Zd ", p);
@@ -898,16 +881,21 @@ int main(){
 
     // ASSINATURA DIGITAL (ENCRYPT E DECRYPT) ECDH
 
+    mpz_t chave_prv_efemera;
+    mpz_init(chave_prv_efemera);
+    gera_escalar_rand(chave_prv_efemera); // Gera uma chave privada efemera
+    mpz_mul_ui(chave_prv_efemera, chave_prv_efemera, 23);
+    gmp_printf("\nChave Privada Efemera: %Zd", chave_prv_efemera);
+
+
     // Encripta a mensagem ultilizando a Chave Publica
-    encriptar_mensagem(msg_cod, chave_pbl, C1, C2);
-    //gmp_printf("\n\nMensagem criptografada\nC1: x = % Zd\n    y = % Zd", C1.x, C1.y);
-    //gmp_printf("\nC2: x = % Zd\n    y = % Zd", C2.x, C2.y);
+    encriptar_mensagem(msg_cod, chave_pbl, C1, C2, chave_prv_efemera);
     gmp_printf("\n\nMensagem criptografada\nC1: %Zd", C1);
     gmp_printf("\nC2: %Zd", C2);
 
 
     // Decripta a mensagem ultilizando a Chave Privada
-    decriptar_mensagem(msg_dec, C1, C2, chave_prv);
+    decriptar_mensagem(msg_dec, C1, C2, chave_prv_efemera);
     gmp_printf("\n\nMensagem descriptografada (x): %Zd", msg_dec);
 
     // Decodifica a mensagem para string original
